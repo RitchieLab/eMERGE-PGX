@@ -1,0 +1,11 @@
+#!/bin/bash
+echo "Called only in 1st: $(grep -P '1\t[^\t]*\t[^\t]*\t[^\t]*$' $1 | wc -l)"
+echo "Called only in 2nd: $(grep -P '2\t[^\t]*\t[^\t]*\t[^\t]*$' $1 | wc -l)"
+echo "Called in both: $(grep -P 'B\t[^\t]*\t[^\t]*\t[^\t]*$' $1 | wc -l)"
+echo "Referent in both: $(grep -P 'B\t[^\t]*\t\.\t\.$' $1 | wc -l)"
+echo "Matching ALT: $(grep -P '\t([^.\t]*)\t\1$' $1 | wc -l)"
+echo "Matching biallelic ALT: $(grep -P '\t([^,.\t]*)\t\1$' $1 | wc -l)"
+echo "Called in only one: $(grep -P '^[^\t]*\t[^\t]*\t[^B]\t' $1 | wc -l)"
+echo "Polyallelic: $(grep ',' $1 | wc -l)"
+echo "Called with different ALT: $(grep -P 'B\t[^\t]*\t([^.\t]*)\t(?!\1)[^.\t]*$' $1 | sed '1d' | wc -l)"
+echo "Called with different biallelic ALT: $(grep -P 'B\t[^\t]*\t([^.,\t]*)\t(?!\1)[^.,\t]*$' $1 | sed '1d' | wc -l)"
