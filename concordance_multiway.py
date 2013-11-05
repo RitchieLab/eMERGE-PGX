@@ -198,20 +198,7 @@ if __name__ == "__main__":
 			f_all_concord[2] += sum((v[0]>0 and v[2]>0) for v in f_geno_count.itervalues())
 			f_all_concord[1] += sum(((not (v[0]>0 and v[2]>0)) and ((v[0]>0 and v[1]>0) or (v[1]>0 and v[2]>0))) for v in f_geno_count.itervalues())
 			f_all_concord[-1] += sum((sum(n>0 for n in v[0:3]) == 1 and (not all(filter_status) or v[3]>0)) for v in f_geno_count.itervalues())
-			f_all_concord[0] += sum(((all(filter_status) and sum(n>0 for n in v) == 1) or sum(n>0 for n in v[0:3]) == 0) for v in f_geno_count.itervalues())
-			
-			if (sum(f_all_concord) - prev_all)%96 != 0:
-				print sum(f_all_concord) - prev_all
-				pprint.pprint(f_geno_count.values())
-				zz = [z for z in zip(f_geno_count.values(),
-					[((all(filter_status) and sum(n>0 for n in v) == 1) or sum(n>0 for n in v[0:3]) == 0) for v in f_geno_count.itervalues()],
-					[((not (v[0]>0 and v[2]>0)) and ((v[0]>0 and v[1]>0) or (v[1]>0 and v[2]>0))) for v in f_geno_count.itervalues()],
-					[(v[0]>0 and v[2]>0) for v in f_geno_count.itervalues()],
-					[(sum(n>0 for n in v[0:3]) == 1 and (not all(filter_status) or v[3]>0)) for v in f_geno_count.itervalues()])]
-				
-				pprint.pprint([(v, sum(v[1:])) for v in zz])
-				exit(1)			
-			
+			f_all_concord[0] += sum(((all(filter_status) and sum(n>0 for n in v) == 1) or sum(n>0 for n in v[0:3]) == 0) for v in f_geno_count.itervalues())	
 							  
 			r_concord = map(operator.add, r_concord, r_curr_concord)
 			
@@ -247,7 +234,7 @@ if __name__ == "__main__":
 	
 	print "Number of discordant ALT:", r_alt_discord
 	
-	print "\nPairwise Concorance Results"
+	print "\nPairwise Concordance Results"
 	print "------------------"
 	print "Total sites:", r_comp_sites
 	print "Total matching sites", r_comp_sites - r_comp_extra
@@ -283,7 +270,7 @@ if __name__ == "__main__":
 	
 	print "Number of discordant ALT:", f_alt_discord
 	
-	print "\nConcorance Results"
+	print "\nPairwise Concordance Results"
 	print "------------------"
 	print "Total sites:", f_comp_sites
 	print "Total matching sites", f_comp_sites - f_comp_extra

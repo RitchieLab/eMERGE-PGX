@@ -140,7 +140,6 @@ JAVA_OPTIONS="-d64 -Xms512M -Xmx9G" GenomeAnalysisTK \
 	-R $REF_GENOME \
 	-I "$BAM_FILE" \
 	-o "$OUT_BAM"
-
 #fi
 
 ####### ^---- JOB COMMANDS ABOVE ----^

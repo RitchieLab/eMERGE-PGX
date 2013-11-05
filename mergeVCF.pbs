@@ -93,28 +93,30 @@ cd "${PBS_O_WORKDIR}"
 
 ####### v---- JOB COMMANDS BELOW ----v
 
+ANALYSIS_FILE_DIR="/gpfs/group1/m/mdr23/datasets/GATK/2.5"
+if test ! -z "$REFERENCE"; then
+    REF_GENOME="$REFERENCE"
+else
+    REF_GENOME="$ANALYSIS_FILE_DIR/human_g1k_v37_decoy.fasta"
+fi
 
-ANALYSIS_FILE_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGRN/uw/pgrnuw/July312013/E_Roden_PGxUWash_WGHum-SeqCustom_102212_2/rawdataset_to_PI_CC/Analysis_Pipeline_Files"
-BED_FILE_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGRN/uw/pgrnuw/July312013/E_Roden_PGxUWash_WGHum-SeqCustom_102212_2/rawdataset_to_PI_CC/BED_files"
-REF_GENOME="$ANALYSIS_FILE_DIR/human_g1k_v37_decoy.fasta"
-DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.b37.vcf"
+if test -z "$IN_DIR"; then
+	echo "ERROR: Input directory of VCF files must be given"
+	exit 2
+fi
 
-TARGET_BED="$BED_FILE_DIR/Targets_BED_File_PGRN_seq_HG19_BCM_EZ_ExpectedTargets_120712_NoCHR_Dummy.bed"
+if test -z "$PREFIX"; then
+	PREFIX="$PWD/$PBS_JOBID"
+fi
 
-IN_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/uw-322/data"
-OUT_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/uw-322/VCF"
+OUT_F="$PREFIX.merged.vcf"
 
-OUT_F="$OUT_DIR/batch_${slice}.filtered.merged.vcf"
-
-if test ! -f "$OUT_F"; then
-
-	JAVA_OPTIONS="-d64 -Xms512m -Xmx27G" GenomeAnalysisTK \
+JAVA_OPTIONS="-d64 -Xms512m -Xmx27G" GenomeAnalysisTK \
 	-T CombineVariants \
 	-R $REF_GENOME \
 	-filteredRecordsMergeType KEEP_IF_ALL_UNFILTERED \
-	$(ls -1 $IN_DIR/batch_${slice}_*.vcf | sed -e 's/^/-V /' -e 's/\n//g') \
+	$(ls -1 $IN_DIR/*.vcf | sed -e 's/^/-V /' -e 's/\n//g') \
 	-o "$OUT_F"
-fi
 
 
 ####### ^---- JOB COMMANDS ABOVE ----^

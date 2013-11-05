@@ -33,14 +33,14 @@ N_BATCHES=1
 # NOTE: this is only used when N_BATCHES < 1
 N_SAMPLES=500
 
-OUTPUT_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/output/VCF/raw"
+OUTPUT_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/output/VCF/split"
 #OUTPUT_DIR="$BASE_DIR/VCF"
 
 #PBS_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/pbs_output/call_variants/$(echo $BASE_DIR | sed -e 's|/*$||' -e 's|.*/||')"
 PBS_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/pbs_output/call_variants/$SITE"
 
 #PREFIX="$(echo $BASE_DIR | sed -e 's|/*$||' -e 's|.*/||')"
-PREFIX="$SITE.filtered"
+PREFIX="$SITE"
 
 # Directory to put grouped BAM file lists
 SHUF_DIR="$HOME/scratch/PGX/${PREFIX}/"
@@ -102,7 +102,7 @@ for i in "${!BAM_FN_ARRAY[@]}"; do
 	# Calculate the time needed
 	N_SAMPLES=$(wc -l ${BAM_FN_ARRAY[$i]} | cut -d' ' -f1)
 	N_sec=$(awk "END {printf \"%d\", $N_SAMPLES*(585*log($N_SAMPLES)/log(10) + 2350) }" </dev/null)
-	N_min=$(( (N_sec / 60 + 180) * 6 / 10 ))
+	N_min=$(( (N_sec / 10 / 60 + 180) * 6 / 10 ))
 
 	# If using reduced BAMs, we can expect ~12x speedup
 	if test ! -z "$REDUCED"; then
@@ -111,5 +111,5 @@ for i in "${!BAM_FN_ARRAY[@]}"; do
 
 	TIME_STR=$(printf "%02d:%02d:00" $((N_min / 60)) $((N_min % 60)))
 	
-	qsub -N call_variants -l walltime=${TIME_STR} -v PREFIX=${OUTPUT_DIR}/${USE_PREFIX},BAM_LIST=${BAM_FN_ARRAY[$i]},REFERENCE=$REFERENCE -w $PBS_DIR runPipeline.pbs
+	qsub -N call_variants -l walltime=${TIME_STR} -v PREFIX=${OUTPUT_DIR}/${USE_PREFIX},BAM_LIST=${BAM_FN_ARRAY[$i]},REFERENCE=$REFERENCE -w $PBS_DIR -t0-22 runPipelineParallel.pbs
 done
