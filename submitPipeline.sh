@@ -2,7 +2,7 @@
 
 # EDIT THE FOLLOWING VARIABLES:
 
-SITE="combined_20131101"
+SITE="20131105_vanderbilt"
 
 # Reference that everything was aligned to
 #REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/ucsc.hg19.fasta"
@@ -40,7 +40,7 @@ OUTPUT_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/output/VCF/raw"
 PBS_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/pbs_output/call_variants/$SITE"
 
 #PREFIX="$(echo $BASE_DIR | sed -e 's|/*$||' -e 's|.*/||')"
-PREFIX="$SITE.filtered"
+PREFIX="$SITE"
 
 # Directory to put grouped BAM file lists
 SHUF_DIR="$HOME/scratch/PGX/${PREFIX}/"

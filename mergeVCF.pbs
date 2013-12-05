@@ -109,7 +109,7 @@ if test -z "$PREFIX"; then
 	PREFIX="$PWD/$PBS_JOBID"
 fi
 
-OUT_F="$PREFIX.merged.vcf"
+OUT_F="$PREFIX.merged.vcf.gz"
 
 JAVA_OPTIONS="-d64 -Xms512m -Xmx27G" GenomeAnalysisTK \
 	-T CombineVariants \
@@ -118,6 +118,7 @@ JAVA_OPTIONS="-d64 -Xms512m -Xmx27G" GenomeAnalysisTK \
 	$(ls -1 $IN_DIR/*.vcf | sed -e 's/^/-V /' -e 's/\n//g') \
 	-o "$OUT_F"
 
+tabix -p vcf "$OUT_F"
 
 ####### ^---- JOB COMMANDS ABOVE ----^
 

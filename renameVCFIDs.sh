@@ -20,7 +20,7 @@ if test $(join -1 2 -2 1 <(grep '#CHROM' $vcf_header | cut -f10- | tr '\t' '\n' 
 	echo "Filtering VCF..."
 
 	vcf_filtered="$(mktemp).vcf.gz"
-	vcf-subset -u -c $(cut -f1 "$ID_TRANS" | tr '\n' ',' | sed 's/,$//') "$OLD_VCF_FILE" | bgzip > $vcf_filtered
+	JAVA_OPTIONS="-d64 -Xmx8G" GenomeAnalysisTK-2.4-9 -T SelectVariants -R ~/group/datasets/GATK/2.5/human_g1k_v37_decoy.fasta -V $OLD_VCF_FILE --sample_file <(cut -f1 $ID_TRANS) -o $vcf_filtered
 	tabix -p vcf $vcf_filtered
 	OLD_VCF_FILE=$vcf_filtered
 	zcat "$OLD_VCF_FILE" | head -5000 | grep -E '^#' > $vcf_header

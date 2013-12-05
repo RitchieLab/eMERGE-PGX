@@ -129,13 +129,17 @@ if test -z "$PREFIX"; then
 	fi
 fi
 
+if test -z "$BAM_LIST"; then
+	echo "ERROR: BAM_LIST must be provided as an environment variable"
+	exit 2
+fi
 
 # Call variants
 
 JAVA_OPTIONS="-d64 -Xms512m -Xmx22G" GenomeAnalysisTK \
 -T UnifiedGenotyper \
 -R $REF_GENOME \
-$(cat $BAM_LIST | sed -e "s|^|-I |") \
+$(cat $BAM_LIST | cut -f1 | sed -e "s|^|-I |") \
 --dbsnp $DBSNP \
 -L $TARGET_BED \
 -glm SNP \
@@ -166,10 +170,10 @@ JAVA_OPTIONS="-d64 -Xms512m -Xmx22G" GenomeAnalysisTK \
 --filterName 'ABFilter' \
 --filterExpression 'QUAL<=50.0' \
 --filterName 'QUALFilter' \
--o "$PREFIX.filtered.vcf.gz" 
+-o "$PREFIX.vcf.gz" 
 
 # Let's go ahead and tabix the vcf while we're at it!
-tabix -p vcf "$PREFIX.filtered.vcf.gz"
+tabix -p vcf "$PREFIX.vcf.gz"
 
 ####### ^---- JOB COMMANDS ABOVE ----^
 

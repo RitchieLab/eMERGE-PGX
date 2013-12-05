@@ -67,6 +67,8 @@ if __name__ == "__main__":
 	r_polyallelic_count = {}
 	f_polyallelic_count = {}
 	
+	r_alt_disagree = 0
+	f_alt_disagree = 0
 	r_alt_discord = 0
 	f_alt_discord = 0
 	
@@ -155,8 +157,19 @@ if __name__ == "__main__":
 		r_alts = set((frozenset(alt[i]) for i,v in enumerate(to_advance) if v)) - nonref
 		f_alts = set((frozenset(alt[i]) for i,v in enumerate(filter_status) if v)) - nonref
 		
-		r_alt_discord += (len(r_alts) > 1)
-		f_alt_discord += (len(f_alts) > 1)
+		r_alt_list = [(len(s), s) for s in r_alts]
+		r_alt_list.sort(reverse=True)
+		
+		f_alt_list = [(len(s), s) for s in f_alts]
+		f_alt_list.sort(reverse=True)
+
+		
+		# check for a superset of alleles
+		r_alt_discord += (sum((len(v[1] - r_alt_list[0][1]) for v in r_alt_list[1:])) > 0)
+		f_alt_discord += (sum((len(v[1] - f_alt_list[0][1]) for v in f_alt_list[1:])) > 0)
+		
+		r_alt_disagree += (len(r_alts) > 1)
+		f_alt_disagree += (len(f_alts) > 1)
 			
 		if len(r_alts) == 1 and sum(len(a) for a in r_alts) == 1:
 			r_comp_extra += (len(set((frozenset(alt[i]) for i,v in enumerate(to_advance) if v))) > 1)
@@ -232,6 +245,7 @@ if __name__ == "__main__":
 	
 	print_dict(r_polyallelic_count)
 	
+	print "Number of disagreeing ALT:", r_alt_disagree
 	print "Number of discordant ALT:", r_alt_discord
 	
 	print "\nPairwise Concordance Results"
@@ -268,6 +282,7 @@ if __name__ == "__main__":
 	
 	print_dict(f_polyallelic_count)
 	
+	print "Number of disagreeing ALT:", f_alt_disagree
 	print "Number of discordant ALT:", f_alt_discord
 	
 	print "\nPairwise Concordance Results"

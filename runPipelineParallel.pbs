@@ -54,7 +54,7 @@
 #PBS -l pmem=25gb
 
 ####### maximum job execution time (real time, not just CPU time): DD:HH:MM:SS
-#PBS -l walltime=48:00:00
+#PBS -l walltime=06:00:00
 
 ####### output filename (default:"<script.pbs>.o<jobid>")
 ##PBS -o output.file
@@ -108,7 +108,7 @@ BED_FILE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/files"
 if test ! -z "$REFERENCE"; then
 	REF_GENOME="$REFERENCE"
 else
-	REF_GENOME="$ANALYSIS_FILE_DIR/grch37/human_g1k_v37_decoy.fasta"
+	REF_GENOME="$ANALYSIS_FILE_DIR/human_g1k_v37_decoy.fasta"
 fi
 
 if test ! -z "$(echo $REF_GENOME | grep '\.hg19\.')"; then
@@ -136,13 +136,18 @@ fi
 # Add the chromosome to the prefix
 PREFIX="${PREFIX}.$(echo $TARGET_BED | sed 's|.*/||' | cut -d. -f3)"
 
+if test ! -z "$RENAME" -a "$RENAME" -ne 0; then
+	ADDL_CMD="-sample_rename_mapping_file $BAM_LIST"
+	PREFIX="${PREFIX}.renamed"
+fi
+
 
 # Call variants
 
 JAVA_OPTIONS="-d64 -Xms512m -Xmx22G" GenomeAnalysisTK \
 -T UnifiedGenotyper \
 -R $REF_GENOME \
-$(cat $BAM_LIST | sed -e "s|^|-I |") \
+$(cat $BAM_LIST | cut -f1 | sed -e "s|^|-I |") \
 --dbsnp $DBSNP \
 -L $TARGET_BED \
 -glm SNP \
@@ -159,6 +164,7 @@ $(cat $BAM_LIST | sed -e "s|^|-I |") \
 -A AlleleBalanceBySample \
 -A AlleleBalance \
 -o "$TMPDIR/raw.OnTarget.vcf" \
+$ADDL_CMD \
 -nct 10
 
 # Filter variants
@@ -173,10 +179,10 @@ JAVA_OPTIONS="-d64 -Xms512m -Xmx22G" GenomeAnalysisTK \
 --filterName 'ABFilter' \
 --filterExpression 'QUAL<=50.0' \
 --filterName 'QUALFilter' \
--o "$PREFIX.filtered.vcf.gz" 
+-o "$PREFIX.vcf.gz" 
 
 # Let's go ahead and tabix the vcf while we're at it!
-tabix -p vcf "$PREFIX.filtered.vcf.gz"
+tabix -p vcf "$PREFIX.vcf.gz"
 
 ####### ^---- JOB COMMANDS ABOVE ----^
 

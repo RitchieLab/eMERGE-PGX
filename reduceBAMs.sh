@@ -2,17 +2,18 @@
 
 # EDIT THE FOLLOWING VARIABLES:
 
-SITE="20130731_uw"
+SITE="20131105_vanderbilt"
+
+INPUT_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGRN/20131105_vanderbilt/e_roden_pgxvu_seqcustom_808/rawdataset_to_PI_CC/BAM_BAI/"
+
+# Reference that everything was aligned to
+REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/human_g1k_v37_decoy.fasta"
+#REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/ucsc.hg19.fasta"
+
+#============================================================================================================
 
 PBS_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/pbs_output/reduce_bam/$SITE"
 OUTPUT_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/input/$SITE/reduced_bam"
-
-# Reference that everything was aligned to
-#REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/ucsc.hg19.fasta"
-REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/human_g1k_v37_decoy.fasta"
-
-#INPUT_DIR="/gpfs/group1/m/mdr23/FTP_root/eMERGE/Uploads/MtSinai/PGRNseq2013/BAMs"
-INPUT_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGRN/20130731_uw/pgrnuw/July312013/E_Roden_PGxUWash_WGHum-SeqCustom_102212_2/rawdataset_to_PI_CC/BAM_BAI/"
 
 ###==========================================================================================================
 # DO NOT EDIT ANYTHING BELOW THIS LINE (unless you're brave)!!

@@ -2,12 +2,14 @@
 
 # EDIT THE FOLLOWING VARIABLES:
 
-SITE="combined_20131101"
+SITE="combined_20131106"
 
 # Reference that everything was aligned to
 #REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/ucsc.hg19.fasta"
 REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/human_g1k_v37_decoy.fasta"
 
+# set to 1 if you have a mapping of BAM -> ID and you want to use it
+RENAME=1
 
 #===============
 # Only edit the following variables if you know what you're doing!
@@ -111,5 +113,5 @@ for i in "${!BAM_FN_ARRAY[@]}"; do
 
 	TIME_STR=$(printf "%02d:%02d:00" $((N_min / 60)) $((N_min % 60)))
 	
-	qsub -N call_variants -l walltime=${TIME_STR} -v PREFIX=${OUTPUT_DIR}/${USE_PREFIX},BAM_LIST=${BAM_FN_ARRAY[$i]},REFERENCE=$REFERENCE -w $PBS_DIR -t0-22 runPipelineParallel.pbs
+	qsub -N call_variants -l walltime=${TIME_STR} -v PREFIX=${OUTPUT_DIR}/${USE_PREFIX},BAM_LIST=${BAM_FN_ARRAY[$i]},REFERENCE=$REFERENCE,RENAME=$RENAME -w $PBS_DIR -t0-22 runPipelineParallel.pbs
 done
