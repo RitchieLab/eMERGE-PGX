@@ -2,13 +2,13 @@
 
 # EDIT THE FOLLOWING VARIABLES:
 
-SITE="combined_20131106"
+SITE="20131205_cchmc"
 
 # set to 1 if running a parallel job
-PARALLEL=1
+#PARALLEL=1
 
 # set to 1 if you have a mapping of BAM -> ID and you want to use it
-RENAME=1
+#RENAME=1
 
 #===========================
 # Only edit the following variables if you know what you're doing!
@@ -122,7 +122,7 @@ for i in "${!BAM_FN_ARRAY[@]}"; do
 
 	TIME_STR=$(printf "%02d:%02d:00" $((N_min / 60)) $((N_min % 60)))
 
-	if test ! -z "$PARALLEL" -a "$PARALLEL" -ne 0; then
+	if [ -n "$PARALLEL" ] && [ "$PARALLEL" -ne 0 ] ; then
 		# Parallelizing gives ~10x speedup
 		N_min=$(( N_min / 10 ))
 		TIME_STR=$(printf "%02d:%02d:00" $((N_min / 60)) $((N_min % 60)))

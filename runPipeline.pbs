@@ -151,7 +151,7 @@ else
 	fi
 fi
 
-if test ! -z "$RENAME" -a "$RENAME" -ne 0; then
+if [ -n "$RENAME" ] && [ "$RENAME" -ne 0 ] ; then
 	ADDL_CMD="-sample_rename_mapping_file $BAM_LIST"
 	PREFIX="${PREFIX}.renamed"
 fi
