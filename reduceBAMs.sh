@@ -2,9 +2,9 @@
 
 # EDIT THE FOLLOWING VARIABLES:
 
-SITE="20131105_vanderbilt"
+SITE="20131205_cchmc"
 
-INPUT_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGRN/20131105_vanderbilt/e_roden_pgxvu_seqcustom_808/rawdataset_to_PI_CC/BAM_BAI/"
+INPUT_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGX/20131205_cchmc/e_roden_pgxcchmc_seqcustom_102212_8_822/rawdataset_to_PI_CC/BAM_BAI"
 
 # Reference that everything was aligned to
 REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/human_g1k_v37_decoy.fasta"

@@ -4,17 +4,22 @@
 
 SITE="combined_20131106"
 
-# Reference that everything was aligned to
-#REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/ucsc.hg19.fasta"
-REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/human_g1k_v37_decoy.fasta"
+# set to 1 if running a parallel job
+PARALLEL=1
 
 # set to 1 if you have a mapping of BAM -> ID and you want to use it
 RENAME=1
 
-#===============
+#===========================
 # Only edit the following variables if you know what you're doing!
-# Running the 
-#===============
+
+# Reference that everything was aligned to
+# We should ALWAYS use GRCh37!
+#REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/ucsc.hg19.fasta"
+REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/human_g1k_v37_decoy.fasta"
+
+# number of threads
+N_THREAD=10
 
 # The base directory for the analysis.
 # These can be modified with the OUTPUT_DIR and PREFIX variables
@@ -35,7 +40,7 @@ N_BATCHES=1
 # NOTE: this is only used when N_BATCHES < 1
 N_SAMPLES=500
 
-OUTPUT_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/output/VCF/split"
+OUTPUT_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/output/VCF"
 #OUTPUT_DIR="$BASE_DIR/VCF"
 
 #PBS_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/pbs_output/call_variants/$(echo $BASE_DIR | sed -e 's|/*$||' -e 's|.*/||')"
@@ -103,8 +108,12 @@ for i in "${!BAM_FN_ARRAY[@]}"; do
 	
 	# Calculate the time needed
 	N_SAMPLES=$(wc -l ${BAM_FN_ARRAY[$i]} | cut -d' ' -f1)
+	
+	# extrapolated expected time to completion based on unreduced full BAMs, 6 cores
 	N_sec=$(awk "END {printf \"%d\", $N_SAMPLES*(585*log($N_SAMPLES)/log(10) + 2350) }" </dev/null)
-	N_min=$(( (N_sec / 10 / 60 + 180) * 6 / 10 ))
+	
+	# Add a cushion of 3 hours, then adjust for the actual number of cores used
+	N_min=$(( (N_sec / 60 + 180) * 6 / N_THREAD ))
 
 	# If using reduced BAMs, we can expect ~12x speedup
 	if test ! -z "$REDUCED"; then
@@ -112,6 +121,15 @@ for i in "${!BAM_FN_ARRAY[@]}"; do
 	fi
 
 	TIME_STR=$(printf "%02d:%02d:00" $((N_min / 60)) $((N_min % 60)))
-	
-	qsub -N call_variants -l walltime=${TIME_STR} -v PREFIX=${OUTPUT_DIR}/${USE_PREFIX},BAM_LIST=${BAM_FN_ARRAY[$i]},REFERENCE=$REFERENCE,RENAME=$RENAME -w $PBS_DIR -t0-22 runPipelineParallel.pbs
+
+	if test ! -z "$PARALLEL" -a "$PARALLEL" -ne 0; then
+		# Parallelizing gives ~10x speedup
+		N_min=$(( N_min / 10 ))
+		TIME_STR=$(printf "%02d:%02d:00" $((N_min / 60)) $((N_min % 60)))
+		OUTPUT_DIR="$OUTPUT_DIR/split"
+		qsub -N call_variants -l walltime=${TIME_STR} -l nodes=1:ppn=$N_THREAD -v PREFIX=${OUTPUT_DIR}/${USE_PREFIX},BAM_LIST=${BAM_FN_ARRAY[$i]},REFERENCE=$REFERENCE,RENAME=$RENAME,PARALLEL=1 -w $PBS_DIR -t0-22 runPipeline.pbs
+	else
+		OUTPUT_DIR="$OUTPUT_DIR/raw"
+		qsub -N call_variants -l walltime=${TIME_STR} -l nodes=1:ppn=$N_THREAD -v PREFIX=${OUTPUT_DIR}/${USE_PREFIX},BAM_LIST=${BAM_FN_ARRAY[$i]},REFERENCE=$REFERENCE,RENAME=$RENAME -w $PBS_DIR runPipeline.pbs
+	fi
 done
