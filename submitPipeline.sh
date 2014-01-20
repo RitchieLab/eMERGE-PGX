@@ -2,7 +2,7 @@
 
 # EDIT THE FOLLOWING VARIABLES:
 
-SITE="20131205_cchmc"
+SITE="20140114_nw"
 
 # set to 1 if running a parallel job
 #PARALLEL=1

@@ -25,7 +25,6 @@ if test $(join -1 2 -2 1 <(grep '#CHROM' $vcf_header | cut -f10- | tr '\t' '\n' 
 	OLD_VCF_FILE=$vcf_filtered
 	zcat "$OLD_VCF_FILE" | head -5000 | grep -E '^#' > $vcf_header
 fi
-	
 
 cat <(grep -Ev '#CHROM' $vcf_header) <(paste <(echo -e "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT") <(join -1 2 -2 1 <(grep '#CHROM' $vcf_header | cut -f10- | tr '\t' '\n' | grep -n '.' | tr ':' '\t' | sort -k2) <(cat "$ID_TRANS" | sort) | tr ' ' '\t' | sort -g -k2,2 | cut -f 3 | tr '\n' '\t' | sed 's/\t$//') ) > $vcf_newheader
 

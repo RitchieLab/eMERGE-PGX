@@ -2,18 +2,14 @@
 
 # EDIT THE FOLLOWING VARIABLES:
 
-SITE="20140114_nw_cchmc"
+SITE="20140114_nw"
 
 INPUT_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGX/20140114_nw/e_roden_pgxnorthwestern_seqcustom_102212_833/rawdataset_to_PI_CC/BAM_BAI"
 
-# Reference that everything was aligned to
-REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/human_g1k_v37_decoy.fasta"
-#REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/ucsc.hg19.fasta"
-
 #============================================================================================================
 
-PBS_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/pbs_output/reduce_bam/$SITE"
-OUTPUT_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/input/$SITE/reduced_bam"
+PBS_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/pbs_output/convert_bam/$SITE"
+OUTPUT_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/input/$SITE/converted_bam"
 
 ###==========================================================================================================
 # DO NOT EDIT ANYTHING BELOW THIS LINE (unless you're brave)!!
@@ -28,5 +24,5 @@ fi
 
 for d in $INPUT_DIR; do
 	N_BAMS=$(ls -1 $d/*.bam | wc -l)
-	qsub -v BAM_DIR=$d,OUT_DIR=$OUTPUT_DIR,REFERENCE=$REFERENCE -t 1-$N_BAMS -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/reduceBAMDir.pbs
+	qsub -v BAM_DIR=$d,OUT_DIR=$OUTPUT_DIR -t 1-$N_BAMS -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/reduceBAMDir.pbs
 done
