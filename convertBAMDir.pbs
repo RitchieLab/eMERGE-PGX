@@ -54,7 +54,7 @@
 #PBS -l pmem=12gb
 
 ####### maximum job execution time (real time, not just CPU time): DD:HH:MM:SS
-#PBS -l walltime=08:00:00
+#PBS -l walltime=24:00:00
 
 ####### output filename (default:"<script.pbs>.o<jobid>")
 ##PBS -o output.file
@@ -119,30 +119,52 @@ BAM_ARRAY=( $(ls -1 $BAM_DIR/*.bam) )
 BAM_FILE=${BAM_ARRAY[$((PBS_ARRAYID - 1))]}
 BAI_FILE="$(echo $BAM_FILE | sed 's/m$/i/')"
 
-BASE_FN="$(echo $BAM_FILE | sed 's/\.[^.]*$//')"
+BASE_FN="$(echo $BAM_FILE | sed -e 's/\.[^.]*$//' -e 's|^.*/||g')"
 
 # Test to see if the input BAM is indexed, please
 if test ! -f "$BAI_FILE"; then
 	samtools index "$BAM_FILE" "$BAI_FILE"
 fi
 
+# get the RG header info
+READ_HEADER=$(samtools view -H "$BAM_FILE" | grep "^@RG")
+
+# sort the BAM file
+samtools sort -n "$BAM_FILE" "$TMPDIR/$BASE_FN.sorted"
+
+# convert paired-end fastq
+bedtools bamtofastq -i "$TMPDIR/$BASE_FN.sorted.bam" -fq "$TMPDIR/$BASE_FN.1.fastq" -fq2 "$TMPDIR/$BASE_FN.2.fastq"
+ls -alh "$TMPDIR"
+
 # convert BAM to FASTQ
-bamtools convert -in $BAM_FILE -format fastq > "$TMPDIR/$BASE_FN.fastq"
+#bamtools convert -in $BAM_FILE -format fastq > "$TMPDIR/$BASE_FN.fastq"
 
 # align FASTQ to our default reference a la CIDR pipeline
-$BWA_DIR/bwa aln \
+bwa aln \
 -t 4 \
 -q 15 \
 $REF_GENOME \
-"$TMPDIR/$BASE_FN.fastq"
--f "$TMPDIR/$BASE_FN.sai"
+"$TMPDIR/$BASE_FN.1.fastq" \
+-f "$TMPDIR/$BASE_FN.1.sai"
 
-$BWA_DIR/bwa sampe \
+ls -alh "$TMPDIR"
+
+bwa aln \
 -t 4 \
--r "@RG\tID:$READ_GROUP\tPU:$PLATFORM_UNIT\tPL:$PLATFORM\tLB:$LIBRARY\tDT:$RUN_DATE\tSM:$SM_TAG\tCN:$CENTER\tDS:$INSTRUMENT_TYPE" \
+-q 15 \
 $REF_GENOME \
-"$TMPDIR/$BASE_FN.sai" \
-"$TMPDIR/$BASE_FN.fastq" \
+"$TMPDIR/$BASE_FN.2.fastq" \
+-f "$TMPDIR/$BASE_FN.2.sai"
+
+ls -alh "$TMPDIR"
+
+bwa sampe \
+-r "$READ_HEADER" \
+$REF_GENOME \
+"$TMPDIR/$BASE_FN.1.sai" \
+"$TMPDIR/$BASE_FN.2.sai" \
+"$TMPDIR/$BASE_FN.1.fastq" \
+"$TMPDIR/$BASE_FN.2.fastq" \
 | MergeSamFiles \
 INPUT=/dev/stdin \
 OUTPUT="$TMPDIR/$BASE_FN.original.bam" \
@@ -155,7 +177,7 @@ MarkDuplicates \
 INPUT="$TMPDIR/$BASE_FN.original.bam" \
 OUTPUT="$TMPDIR/$BASE_FN.dup.bam" \
 VALIDATION_STRINGENCY=SILENT \
-METRICS_FILE=$CORE_PATH/$OUTPATH/Reports/Picard_Duplicates/Aggregate/$SM_TAG".picard.duplicates.txt" \
+METRICS_FILE="$TMPDIR/$BASE_FN.picard.duplicates.txt" \
 CREATE_INDEX=true
 
 GenomeAnalysisTK-2.7-4 \
@@ -173,22 +195,21 @@ GenomeAnalysisTK-2.7-4 \
 -R $REF_GENOME \
 -known $ANALYSIS_FILE_DIR/Mills_and_1000G_gold_standard.indels.b37.vcf \
 -known $ANALYSIS_FILE_DIR/1000G_phase1.indels.b37.vcf \
--targetIntervals $CORE_PATH/$OUTPATH/Reports/Local_Realignment_Intervals/$SM_TAG".intervals" \
--o $CORE_PATH/$OUTPATH/temp/$SM_TAG".realign.bam"
+-targetIntervals "$TMPDIR/$BASE_FN.intervals" \
+-o "$TMPDIR/$BASE_FN.realign.bam"
 
-java -jar $GATK_DIR/GenomeAnalysisTK.jar \
+GenomeAnalysisTK-2.7-4 \
 -T BaseRecalibrator \
--I $CORE_PATH/$OUTPATH/temp/$SM_TAG".realign.bam" \
+-I "$TMPDIR/$BASE_FN.realign.bam" \
 -R $REF_GENOME \
 -knownSites $ANALYSIS_FILE_DIR/Mills_and_1000G_gold_standard.indels.b37.vcf \
 -knownSites $ANALYSIS_FILE_DIR/1000G_phase1.indels.b37.vcf \
--knownSites $ANALYSIS_FILE_DIR/dbsnp_137.b37.vcf \
+-knownSites $ANALYSIS_FILE_DIR/dbsnp_137.b37.vcf.gz \
 -dt NONE \
---intermediate_csv_file "$TMPDIR/$BASE_FN.csv" \
 -o "$TMPDIR/$BASE_FN.bqsr" \
 -nct 4
 
-java -jar $GATK_DIR/GenomeAnalysisTK.jar \
+GenomeAnalysisTK-2.7-4 \
 -T PrintReads \
 -R $REF_GENOME \
 -I "$TMPDIR/$BASE_FN.realign.bam" \

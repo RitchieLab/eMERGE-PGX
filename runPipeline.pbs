@@ -185,6 +185,7 @@ $ADDL_CMD \
 # Filter variants
 
 JAVA_OPTIONS="-d64 -Xms512m -Xmx22G" GenomeAnalysisTK \
+-l ERROR \
 -T VariantFiltration \
 -R $REF_GENOME \
 --variant "$TMPDIR/raw.OnTarget.vcf" \

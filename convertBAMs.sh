@@ -2,9 +2,9 @@
 
 # EDIT THE FOLLOWING VARIABLES:
 
-SITE="20140114_nw"
+SITE="mtsinai_convert"
 
-INPUT_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGX/20140114_nw/e_roden_pgxnorthwestern_seqcustom_102212_833/rawdataset_to_PI_CC/BAM_BAI"
+INPUT_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGX-control/mtsinai/PGRNseq2013/BAMs"
 
 #============================================================================================================
 
@@ -24,5 +24,5 @@ fi
 
 for d in $INPUT_DIR; do
 	N_BAMS=$(ls -1 $d/*.bam | wc -l)
-	qsub -v BAM_DIR=$d,OUT_DIR=$OUTPUT_DIR -t 1-$N_BAMS -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/reduceBAMDir.pbs
+	qsub -v BAM_DIR=$d,OUT_DIR=$OUTPUT_DIR -t 1-$N_BAMS -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/convertBAMDir.pbs
 done
