@@ -30,11 +30,18 @@ if __name__ == "__main__":
 		for l in f:
 			if l.startswith("#CHROM"):
 				vcf_ids.append({v: i for (i, v) in enumerate(l.strip().split('\t')) if i > 8})
-				break
+#				print l.strip().split('\t')
+#				print len(l.strip().split('\t'))
+#				print [(i, v) for (i, v) in enumerate(l.strip().split('\t')) if i > 8]
+				break				
+
 	
 	# OK, we've now got all the headers, let's double check
 	
 	common_ids = set.intersection(*(set(d.keys()) for d in vcf_ids))
+	
+#	print [i for i in common_ids]
+#	print [(i, [(x, vcf_ids[i][x]) for x in common_ids]) for i in xrange(len(vcf_ids))]
 	all_ids = set.union(*(set(d.keys()) for d in vcf_ids))
 		
 	id_count = {}
@@ -182,6 +189,7 @@ if __name__ == "__main__":
 			r_called = [0 for i in curr_line]
 			f_called = [0 for i in curr_line]
 			for i, g in enumerate(curr_line):
+#				print len(g), g
 				if to_advance[i]:
 					for p in common_ids:
 						# geno will be either 0,1,2 (normal encoding), or -1 (missing)
@@ -200,6 +208,8 @@ if __name__ == "__main__":
 							  sum((v[0]*v[1] + v[1]*v[2] for v in r_geno_count.itervalues())),
 							  sum((v[0]*v[2] for v in r_geno_count.itervalues())),
 							  sum((v[-1]*(v[0] + v[1] + v[2]) for v in r_geno_count.itervalues()))]
+#			print working_pos  
+#			print r_curr_concord
 			
 			prev_all = sum(f_all_concord)
 			

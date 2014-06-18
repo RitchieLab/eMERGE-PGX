@@ -25,7 +25,7 @@
 #PBS -m bae
 
 ####### restart job from the beginning if it crashes (will overwrite previous output!): [y]es, [n]o
-##PBS -r y
+#PBS -r y
 
 ####### special queue name (we have "lionxf-mdr23" on LionXF only)
 ####### leave this out to let our qsub wrapper detect and use any available priority queue
@@ -45,16 +45,16 @@
 ####### number of cluster nodes and/or processors to use (ACCRE:always append ":x86")
 #######   "nodes=X:ppn=Y"  for Y cores each on X different nodes
 #######   "nodes=X"        for X cores on any (or the same) node
-#PBS -l nodes=1:ppn=10
+#PBS -l nodes=1:ppn=1
 
 ####### maximum per-job memory (total shared by all cores/nodes)
-#PBS -l mem=25gb
+#PBS -l mem=4gb
 
 ####### maximum per-core memory
-#PBS -l pmem=25gb
+#PBS -l pmem=4gb
 
 ####### maximum job execution time (real time, not just CPU time): DD:HH:MM:SS
-#PBS -l walltime=06:00:00
+#PBS -l walltime=04:00:00
 
 ####### output filename (default:"<script.pbs>.o<jobid>")
 ##PBS -o output.file
@@ -122,86 +122,50 @@ if test -z "$PREFIX"; then
 fi
 
 if [ -z "$N_THREAD" ] || [ "$N_THREAD" -lt 1 ] || [ "$N_THREAD" -gt 10 ] ; then
-	N_THREAD=6
+	N_THREAD=2
 fi
 
 
-if [ -n "$PARALLEL" ] && [ "$PARALLEL" -ne 0 ]; then
-
-	if test ! -z "$(echo $REF_GENOME | grep '\.hg19\.')"; then
-		DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.hg19.vcf.gz"
-		TARGET_BED="$BED_FILE_DIR/by_chrom/targets.hg19.*.bed"
-	elif test ! -z "$(echo $REF_GENOME | grep '_v37')"; then
-		DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.b37.vcf.gz"
-		TARGET_BED="$BED_FILE_DIR/by_chrom/targets.GRCh37.*.bed"
-	fi
-
-	TARGET_BED_ARR=( $(ls -1 $TARGET_BED) )
-	TARGET_BED="${TARGET_BED_ARR[$PBS_ARRAYID]}"
-	# Add the chromosome to the prefix
-	PREFIX="${PREFIX}.$(echo $TARGET_BED | sed 's|.*/||' | cut -d. -f3)"
-else
-
-	if test ! -z "$(echo $REF_GENOME | grep '\.hg19\.')"; then
-		DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.hg19.vcf.gz"
-		TARGET_BED="$BED_FILE_DIR/targets.hg19.bed"
-	elif test ! -z "$(echo $REF_GENOME | grep '_v37')"; then
-		DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.b37.vcf.gz"
-		TARGET_BED="$BED_FILE_DIR/targets.GRCh37.bed"
-	fi
+if test ! -z "$(echo $REF_GENOME | grep '\.hg19\.')"; then
+	DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.hg19.vcf.gz"
+	TARGET_BED="$BED_FILE_DIR/targets.hg19.bed"
+elif test ! -z "$(echo $REF_GENOME | grep '_v37')"; then
+	DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.b37.vcf.gz"
+	TARGET_BED="$BED_FILE_DIR/targets.GRCh37.bed"
 fi
+
+TMP_BAMLIST=$(mktemp)
+printf '%s\n' "$BAM_LIST" > $TMP_BAMLIST
 
 if [ -n "$RENAME" ] && [ "$RENAME" -ne 0 ] ; then
-	ADDL_CMD="-sample_rename_mapping_file $BAM_LIST"
-	PREFIX="${PREFIX}.renamed"
+	ADDL_CMD="-sample_rename_mapping_file $TMP_BAMLIST"
 fi
 
 
 # Call variants
+INLIST=$(printf '%s\n' "$BAM_LIST" | cut -f1 | sed -e "s|^|-I |")
+echo "$INLIST"
 
-JAVA_OPTIONS="-d64 -Xms512m -Xmx22G" GenomeAnalysisTK \
--T UnifiedGenotyper \
+JAVA_OPTIONS="-d64 -Xms512m -Xmx3G" GenomeAnalysisTK-3.1-1.jrw32 \
+-T HaplotypeCaller \
 -R $REF_GENOME \
-$(cat $BAM_LIST | cut -f1 | sed -e "s|^|-I |") \
+$INLIST \
 --dbsnp $DBSNP \
 -L $TARGET_BED \
--glm SNP \
--A QualByDepth \
---output_mode EMIT_ALL_SITES \
--stand_emit_conf 10 \
+-A AlleleBalanceBySample \
 -mbq 20 \
 --downsample_to_coverage 300 \
--A HaplotypeScore \
--A MappingQualityRankSumTest \
--A ReadPosRankSumTest \
--A FisherStrand \
--A GCContent \
--A AlleleBalanceBySample \
--A AlleleBalance \
--A DepthPerSampleHC \
--A MappingQualityZeroBySample \
--A DepthPerAlleleBySample \
--o "$TMPDIR/raw.OnTarget.vcf" \
+-o "$PREFIX.vcf.gz" \
 $ADDL_CMD \
--nct $N_THREAD
-
-# Filter variants
-
-JAVA_OPTIONS="-d64 -Xms512m -Xmx22G" GenomeAnalysisTK \
--l ERROR \
--T VariantFiltration \
--R $REF_GENOME \
---variant "$TMPDIR/raw.OnTarget.vcf" \
---filterExpression 'QD<5.0' \
---filterName 'QDFilter' \
---filterExpression 'ABHet>0.75' \
---filterName 'ABFilter' \
---filterExpression 'QUAL<=50.0' \
---filterName 'QUALFilter' \
--o "$PREFIX.vcf.gz" 
+-ERC GVCF \
+-pairHMM VECTOR_LOGLESS_CACHING \
+-variant_index_type LINEAR \
+-variant_index_parameter 128000
 
 # Let's go ahead and tabix the vcf while we're at it!
-tabix -p vcf "$PREFIX.vcf.gz"
+tabix -f -p vcf "$PREFIX.vcf.gz"
+
+rm $TMP_BAMLIST
 
 ####### ^---- JOB COMMANDS ABOVE ----^
 

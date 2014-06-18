@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# set to 1 if you want to have only 1 ID ("merging")
+# set to 0 to allow for multiple IDs (checking for consistency)
+UNIQUE=0
+
 OLD_VCF_FILE="$1"
 if [ -z "$3" ]; then
 	NEW_VCF_FILE="$(echo $OLD_VCF_FILE | sed 's/\.vcf\.gz$/.renamed.vcf.gz/')"
@@ -18,7 +22,13 @@ vcf_header=$(mktemp)
 vcf_newheader=$(mktemp)
 
 id_t=$(mktemp)
-cat $ID_TRANS > $id_t
+if [ -n "$UNIQUE" ] && [ "$UNIQUE" -ne 0 ]; then
+	cat $ID_TRANS | sort -k 2,2 -u > $id_t
+else
+	cat $ID_TRANS > $id_t
+fi
+
+#cut -f1 $id_t
 
 # We should filter the VCF to include only those IDs in the idlist
 zcat "$OLD_VCF_FILE" | head -5000 | grep -E '^#' > $vcf_header
@@ -27,7 +37,7 @@ if test $(join -1 2 -2 1 <(grep '#CHROM' $vcf_header | cut -f10- | tr '\t' '\n' 
 	echo "Filtering VCF..."
 
 	vcf_filtered="$(mktemp).vcf.gz"
-	JAVA_OPTIONS="-d64 -Xmx8G" GenomeAnalysisTK-2.4-9 -T SelectVariants -R ~/group/datasets/GATK/2.5/human_g1k_v37_decoy.fasta -V $OLD_VCF_FILE --sample_file <(cut -f1 $id_t) -o $vcf_filtered
+	JAVA_OPTIONS="-d64 -Xms512m -Xmx8G" GenomeAnalysisTK -T SelectVariants -R ~/group/datasets/GATK/2.5/human_g1k_v37_decoy.fasta -V $OLD_VCF_FILE --sample_file <(cut -f1 $id_t) -o $vcf_filtered -nt 4
 	tabix -p vcf $vcf_filtered
 	OLD_VCF_FILE=$vcf_filtered
 	zcat "$OLD_VCF_FILE" | head -5000 | grep -E '^#' > $vcf_header

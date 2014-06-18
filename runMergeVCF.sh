@@ -1,9 +1,9 @@
 #!/bin/bash
 
 
-IN_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGX/20140114_nw/e_roden_pgxnorthwestern_seqcustom_102212_833/rawdataset_to_PI_CC/VCF"
+IN_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGX/20140416_nw/e_roden_pgxnw_873/rawdataset_to_PI_CC/VCF"
 
-SITE="20140114_nw"
+SITE="20140416_nw"
 
 REFERENCE="/gpfs/group/mdr23/datasets/GATK/2.5/human_g1k_v37_decoy.fasta"
 

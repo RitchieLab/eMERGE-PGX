@@ -66,9 +66,9 @@ if __name__ == "__main__":
 	print >> sys.stderr, "Total Read Bases:", sdata[4] / float(n)
 	print >> sys.stderr, "Usable Read Bases:", sdata[5] / float(n)
 	print >> sys.stderr, "On-Target Read Bases:", sdata[6] / float(n)
-#	print >> sys.stderr, "On-Target Usable Bases (Total):", sum(ontarget_base)
+	print >> sys.stderr, "On-Target Usable Bases (Total):", sum(ontarget_base)
 	print >> sys.stderr, "On-Target Usable Bases (Mean):", sum(ontarget_base) / float(len(ontarget_base))
-#	print >> sys.stderr, "On-Target Usable Bases (Median):", median(ontarget_base)
+	print >> sys.stderr, "On-Target Usable Bases (Median):", median(ontarget_base)
 	print >> sys.stderr, "Proportion On-Target:", sdata[8] / n
 	print >> sys.stderr, "SNVs - % SNVs in dbSNP37:", sdata[9] / n
 	print >> sys.stderr, "Novel SNVs:", int(round(sdata[11],0)) # sdata[1] * (1 - sdata[9] / (100 * n))

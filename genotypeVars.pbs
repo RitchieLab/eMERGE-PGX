@@ -45,16 +45,16 @@
 ####### number of cluster nodes and/or processors to use (ACCRE:always append ":x86")
 #######   "nodes=X:ppn=Y"  for Y cores each on X different nodes
 #######   "nodes=X"        for X cores on any (or the same) node
-#PBS -l nodes=1:ppn=10
+#PBS -l nodes=1:ppn=1
 
 ####### maximum per-job memory (total shared by all cores/nodes)
-#PBS -l mem=25gb
+#PBS -l mem=14gb
 
 ####### maximum per-core memory
-#PBS -l pmem=25gb
+#PBS -l pmem=14gb
 
 ####### maximum job execution time (real time, not just CPU time): DD:HH:MM:SS
-#PBS -l walltime=06:00:00
+#PBS -l walltime=04:00:00
 
 ####### output filename (default:"<script.pbs>.o<jobid>")
 ##PBS -o output.file
@@ -121,87 +121,66 @@ if test -z "$PREFIX"; then
 	fi
 fi
 
-if [ -z "$N_THREAD" ] || [ "$N_THREAD" -lt 1 ] || [ "$N_THREAD" -gt 10 ] ; then
-	N_THREAD=6
+#if [ -z "$N_THREAD" ] || [ "$N_THREAD" -lt 1 ] || [ "$N_THREAD" -gt 10 ] ; then
+#	N_THREAD=6
+#fi
+
+#ADDL_CMD=""
+#if [ -n "$RENAME" ] && [ "$RENAME" -ne 0 ] ; then
+#	ADDL_CMD="-sample_rename_mapping_file $BAM_LIST"
+#fi
+
+if test ! -z "$(echo $REF_GENOME | grep '\.hg19\.')"; then
+	DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.hg19.vcf.gz"
+	TARGET_BED="$BED_FILE_DIR/targets.hg19.bed"
+elif test ! -z "$(echo $REF_GENOME | grep '_v37')"; then
+	DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.b37.vcf.gz"
+	TARGET_BED="$BED_FILE_DIR/targets.GRCh37.bed"
 fi
 
-
-if [ -n "$PARALLEL" ] && [ "$PARALLEL" -ne 0 ]; then
-
-	if test ! -z "$(echo $REF_GENOME | grep '\.hg19\.')"; then
-		DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.hg19.vcf.gz"
-		TARGET_BED="$BED_FILE_DIR/by_chrom/targets.hg19.*.bed"
-	elif test ! -z "$(echo $REF_GENOME | grep '_v37')"; then
-		DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.b37.vcf.gz"
-		TARGET_BED="$BED_FILE_DIR/by_chrom/targets.GRCh37.*.bed"
-	fi
-
-	TARGET_BED_ARR=( $(ls -1 $TARGET_BED) )
-	TARGET_BED="${TARGET_BED_ARR[$PBS_ARRAYID]}"
-	# Add the chromosome to the prefix
-	PREFIX="${PREFIX}.$(echo $TARGET_BED | sed 's|.*/||' | cut -d. -f3)"
-else
-
-	if test ! -z "$(echo $REF_GENOME | grep '\.hg19\.')"; then
-		DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.hg19.vcf.gz"
-		TARGET_BED="$BED_FILE_DIR/targets.hg19.bed"
-	elif test ! -z "$(echo $REF_GENOME | grep '_v37')"; then
-		DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.b37.vcf.gz"
-		TARGET_BED="$BED_FILE_DIR/targets.GRCh37.bed"
-	fi
-fi
-
-if [ -n "$RENAME" ] && [ "$RENAME" -ne 0 ] ; then
-	ADDL_CMD="-sample_rename_mapping_file $BAM_LIST"
-	PREFIX="${PREFIX}.renamed"
-fi
-
-
-# Call variants
-
-JAVA_OPTIONS="-d64 -Xms512m -Xmx22G" GenomeAnalysisTK \
--T UnifiedGenotyper \
--R $REF_GENOME \
-$(cat $BAM_LIST | cut -f1 | sed -e "s|^|-I |") \
---dbsnp $DBSNP \
--L $TARGET_BED \
--glm SNP \
+JAVA_OPTIONS="-d64 -Xms512m -Xmx12g" GenomeAnalysisTK-3.1-1.jrw32 \
+-T GenotypeGVCFs \
 -A QualByDepth \
---output_mode EMIT_ALL_SITES \
--stand_emit_conf 10 \
--mbq 20 \
---downsample_to_coverage 300 \
 -A HaplotypeScore \
 -A MappingQualityRankSumTest \
 -A ReadPosRankSumTest \
 -A FisherStrand \
 -A GCContent \
--A AlleleBalanceBySample \
 -A AlleleBalance \
--A DepthPerSampleHC \
--A MappingQualityZeroBySample \
--A DepthPerAlleleBySample \
--o "$TMPDIR/raw.OnTarget.vcf" \
-$ADDL_CMD \
--nct $N_THREAD
+-R $REF_GENOME \
+$(cat $GVCF_LIST | sed "s|^|-V |" | tr '\n' ' ') \
+--dbsnp $DBSNP \
+-o "$TMPDIR/annotated.vcf"
 
-# Filter variants
+#JAVA_OPTIONS="-d64 -Xms512m -Xmx40g" GenomeAnalysisTK-3.1-1 \
+#-T VariantAnnotator \
+#-R $REF_GENOME \
+#--dbsnp $DBSNP \
+#-L $TARGET_BED \
+#-V "$TMPDIR/raw.vcf" \
+#$(cat $BAM_LIST | cut -f1 | sed "s|^|-I |" | tr '\n' ' ') \
+#-o "$TMPDIR/annotated.vcf" \
+#$ADDL_CMD \
+#-nt $N_THREAD
 
-JAVA_OPTIONS="-d64 -Xms512m -Xmx22G" GenomeAnalysisTK \
+JAVA_OPTIONS="-d64 -Xms512m -Xmx12g" GenomeAnalysisTK-3.1-1.jrw32 \
 -l ERROR \
 -T VariantFiltration \
 -R $REF_GENOME \
---variant "$TMPDIR/raw.OnTarget.vcf" \
+-V "$TMPDIR/annotated.vcf" \
 --filterExpression 'QD<5.0' \
 --filterName 'QDFilter' \
 --filterExpression 'ABHet>0.75' \
 --filterName 'ABFilter' \
 --filterExpression 'QUAL<=50.0' \
 --filterName 'QUALFilter' \
+-G_filter 'GQ<=50.0' \
+-G_filterName 'LowQualCall' \
+-G_filter '(isHet==1&&AB>0.75)' \
+-G_filterName 'ABFilterCall' \
 -o "$PREFIX.vcf.gz" 
 
-# Let's go ahead and tabix the vcf while we're at it!
-tabix -p vcf "$PREFIX.vcf.gz"
+tabix -f -p vcf "$PREFIX.vcf.gz"
 
 ####### ^---- JOB COMMANDS ABOVE ----^
 

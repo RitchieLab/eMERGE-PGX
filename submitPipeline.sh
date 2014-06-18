@@ -2,13 +2,13 @@
 
 # EDIT THE FOLLOWING VARIABLES:
 
-SITE="20140114_nw"
+SITE="20131101_marshfield"
 
 # set to 1 if running a parallel job
-#PARALLEL=1
+PARALLEL=1
 
 # set to 1 if you have a mapping of BAM -> ID and you want to use it
-#RENAME=1
+RENAME=1
 
 #===========================
 # Only edit the following variables if you know what you're doing!
@@ -19,13 +19,12 @@ SITE="20140114_nw"
 REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/human_g1k_v37_decoy.fasta"
 
 # number of threads
-N_THREAD=10
+N_THREAD=6
 
 # The base directory for the analysis.
 # These can be modified with the OUTPUT_DIR and PREFIX variables
 BASE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/input/$SITE"
-#BASE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/96_control/mtsinai/"
-#BASE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/96_control/uw/"
+#BASE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/96_control/$SITE"
 
 # Set this environment variable is using reduced BAMs (leave unset if using raw BAMs)
 REDUCED=1
@@ -127,9 +126,16 @@ for i in "${!BAM_FN_ARRAY[@]}"; do
 		N_min=$(( N_min / 10 ))
 		TIME_STR=$(printf "%02d:%02d:00" $((N_min / 60)) $((N_min % 60)))
 		OUTPUT_DIR="$OUTPUT_DIR/split"
-		qsub -N call_variants -l walltime=${TIME_STR} -l nodes=1:ppn=$N_THREAD -v PREFIX=${OUTPUT_DIR}/${USE_PREFIX},BAM_LIST=${BAM_FN_ARRAY[$i]},REFERENCE=$REFERENCE,RENAME=$RENAME,PARALLEL=1 -w $PBS_DIR -t0-22 runPipeline.pbs
+		if test ! -d "$OUTPUT_DIR"; then
+		    mkdir -p $OUTPUT_DIR
+		fi
+		qsub -N call_variants -l walltime=${TIME_STR} -l nodes=1:ppn=$N_THREAD -v PREFIX=${OUTPUT_DIR}/${USE_PREFIX},BAM_LIST=${BAM_FN_ARRAY[$i]},REFERENCE=$REFERENCE,RENAME=$RENAME,PARALLEL=1 -w $PBS_DIR -t0-22 /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/runPipeline.pbs
 	else
 		OUTPUT_DIR="$OUTPUT_DIR/raw"
-		qsub -N call_variants -l walltime=${TIME_STR} -l nodes=1:ppn=$N_THREAD -v PREFIX=${OUTPUT_DIR}/${USE_PREFIX},BAM_LIST=${BAM_FN_ARRAY[$i]},REFERENCE=$REFERENCE,RENAME=$RENAME -w $PBS_DIR runPipeline.pbs
+		if test ! -d "$OUTPUT_DIR"; then
+		    mkdir -p $OUTPUT_DIR
+		fi
+
+		qsub -N call_variants -l walltime=${TIME_STR} -l nodes=1:ppn=$N_THREAD -v PREFIX=${OUTPUT_DIR}/${USE_PREFIX},BAM_LIST=${BAM_FN_ARRAY[$i]},REFERENCE=$REFERENCE,RENAME=$RENAME -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/runPipeline.pbs
 	fi
 done
