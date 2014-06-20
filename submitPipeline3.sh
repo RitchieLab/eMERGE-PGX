@@ -5,6 +5,9 @@
 # set to 1 if you have a mapping of BAM -> ID and you want to use it
 RENAME=1
 
+# Set to 1 if you are attempting to re-run failed jobs
+RERUN=1
+
 #===========================
 # Only edit the following variables if you know what you're doing!
 
@@ -48,6 +51,11 @@ if test ! -d "$PBS_DIR"; then
 	mkdir -p $PBS_DIR
 fi
 
+if test ! -d "$BASE_DIR"; then
+	echo "ERROR: Could not find base directory.  Do you have the correct site?"
+	exit 1
+fi
+
 N_BAM=$(wc -l $BAM_LIST| cut -d' ' -f1)
 
 GVCFLIST="$BASE_DIR/gvcflist"
@@ -68,18 +76,28 @@ else
 	OUTPUT_DIR="${OUTPUT_DIR}/raw"
 fi
 
-if test -f "$GVCFLIST"; then
+if [ -n "$RERUN" ] && [ "$RERUN" -ne 0 ] ; then
+	# If we're rerunning, get a list of VCFs that were NOT generated and make that
+	# our idlist
+	if test -f "$GVCFLIST"; then
+		IDLIST=($(join -v1 <(sed -e 's|.*/||' -e 's|\.vcf\..*$||' "$GVCFLIST" | sort) <(ls $OUTPUT_DIR/*.vcf.* | sed -e 's|.*/||' -e 's|\.vcf\..*$||' | sort) ))
+	else
+		echo "WARNING: Attempting to re-run without an existing gvcflist, ignoring RERUN directive"
+		RERUN=0
+	fi
+elif test -f "$GVCFLIST"; then
 	echo "Warning: gvcflist exists!  Moving to gvcflist.old"
 	mv "$GVCFLIST" "$GVCFLIST.old"
 fi
-
 
 if test ! -d "$OUTPUT_DIR"; then
 	mkdir -p "$OUTPUT_DIR"
 fi
 
 for id in "${IDLIST[@]}" ; do
-	
+
+	echo $id
+		
 	BAM_FNS=$(grep "${id}${GREP_SUFF}" "$BAM_LIST")
 	N_SAMPLES=1
 	N_SAMPLES=$(printf '%s\n' "$BAM_FNS" | wc -l)
@@ -104,8 +122,8 @@ for id in "${IDLIST[@]}" ; do
 	fi
 	
 	if [ "$CALLED" -eq 0 ] ; then
-		#echo "pass"
-		qsub -N call_variants3 -l walltime=${TIME_STR} -v PREFIX="${OUTPUT_DIR}/${id}",BAM_LIST="$BAM_FNS",REFERENCE=$REFERENCE,RENAME=$RENAME -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/callVars.pbs
+		echo "pass"
+		#qsub -N call_variants3 -l walltime=${TIME_STR} -v PREFIX="${OUTPUT_DIR}/${id}",BAM_LIST="$BAM_FNS",REFERENCE=$REFERENCE,RENAME=$RENAME -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/callVars.pbs
 	fi
 	
 done
