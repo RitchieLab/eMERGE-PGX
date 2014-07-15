@@ -4,10 +4,13 @@ import csv
 import sys
 
 if __name__ == "__main__":
+
+	# First file is the QC report ( QC_Reports/*_QC_report.csv)
 	raw_f = file(sys.argv[1],'rb')
 	csv_f = csv.DictReader(raw_f)
 	
 	# Read the summary missing rate
+	# Second file is the Summary level stats file ( Annotation_Summary_Stats/Combined_*_SummaryStat_BySample.csv )
 	miss_f = file(sys.argv[2], 'rb')
 	miss_csv = csv.DictReader(miss_f)
 	

@@ -15,9 +15,14 @@ def print_dict(d):
 def print_concord(c):
 	r = [100*v / float(sum(c)) for v in c]
 	print "Concordance:", "%.3f" % r[0]
+	print "Total Discord:", "%.3f" % (r[1] + r[2])
 	print "Heterozygous Discord:", "%.3f" % r[1]
 	print "Homozygous Discord:", "%.3f" % r[2]
 	print "Missing Discord:", "%.3f" % r[-1]
+
+def print_samp_concord(samp_id, c):
+	r = [100*v / float(sum(c)) for v in c]
+	print samp_id, ":", "%.3f / %.3f" % (r[1], r[-1])
 
 if __name__ == "__main__":
 
@@ -78,7 +83,8 @@ if __name__ == "__main__":
 	r_snp_concord = [0, 0, 0, 0]
 	f_snp_concord = [0, 0, 0, 0]
 	
-
+	id_concord = {p : [[0,0,0],[0,0,0]] for p in common_ids}
+	id_snp_concord = {p : [[0,0,0],[0,0,0]] for p in common_ids}
 	
 	while not all(at_eof):
 		for i,f in enumerate(vcf_list):
@@ -175,21 +181,48 @@ if __name__ == "__main__":
 				if base_set != all_set:
 					no_miss_set = all_set - NoneSet
 					
-					# in this case, we have missing discord
-					if len(no_miss_set) == 1:
-						r_concord[-1] += 1
-						r_snp_concord[-1] += is_snp
-						
-						# otherwise, let's check for homozygous discord
-					elif sum(len(s-NoneSet)==1 for s in r_allele_set[p]) > 1:
-						r_concord[2] += 1
-						r_snp_concord[2] += is_snp
-					else:
+					
+					# we know that it's heterozygous if everybody agrees on one allele!
+					if len(base_set) == 1:
 						r_concord[1] += 1
 						r_snp_concord[1] += is_snp
+						id_concord[p][0][1] += 1
+						id_snp_concord[p][0][1] += is_snp						
+						
+						# otherwise, let's check for homozygous discord
+					elif sum((len(s-NoneSet) - len(s-base_set)) == 0 for s in r_allele_set[p]) > 1:
+						#if(is_snp):
+						#	print "homo. raw concordance"
+						#	print base_set
+						#	print r_allele_set[p]
+						#	print [len(s-NoneSet) - len(s-base_set) for s in r_allele_set[p]]
+						#	print all_set
+						#	print no_miss_set
+						#	print base_set
+						#	sys.exit(1)
+						r_concord[2] += 1
+						r_snp_concord[2] += is_snp
+						id_concord[p][0][1] += 1
+						id_snp_concord[p][0][1] += is_snp						
+					else:
+						#if(is_snp):
+						#	print "missing raw concordance"
+						#	print base_set
+						#	print r_allele_set[p]
+						#	print [len(s) - len(s-base_set-NoneSet) for s in r_allele_set[p]]
+						#	print all_set
+						#	print no_miss_set
+						#	print base_set
+						#	sys.exit(1)
+						r_concord[-1] += 1
+						r_snp_concord[-1] += is_snp
+						id_concord[p][0][-1] += 1
+						id_snp_concord[p][0][-1] += is_snp						
 				else:
 					r_concord[0] += 1
 					r_snp_concord[0] += is_snp
+					id_concord[p][0][0] += 1
+					id_snp_concord[p][0][0] += is_snp						
 					
 					
 				base_set = set.intersection(*f_allele_set[p])
@@ -200,23 +233,40 @@ if __name__ == "__main__":
 					no_miss_set = all_set - NoneSet
 					
 #					print working_pos, is_snp, p, base_set, all_set, f_allele_set[p]
-					# in this case, we have missing discord
-					if sum(len(s-NoneSet)==1 for s in f_allele_set[p]) > 1:
-						f_concord[2] += 1
-						f_snp_concord[2] += is_snp
-					elif sum(len(s-NoneSet)>1 for s in f_allele_set[p]) > 1:
-						print working_pos, is_snp, p, base_set, all_set, f_allele_set[p]
+					if len(base_set) == 1:
+#						if(is_snp):
+#							print working_pos, is_snp, p, base_set, all_set, f_allele_set[p]
 						f_concord[1] += 1
-						f_snp_concord[1] += is_snp
-					
-						# otherwise, let's check for homozygous discord
+						f_snp_concord[1] += is_snp						
+						id_concord[p][1][1] += 1
+						id_snp_concord[p][1][1] += is_snp						
+					elif sum((len(s-NoneSet) - len(s-base_set)) == 0 for s in f_allele_set[p]) > 1:
+											#if(is_snp):
+						#	print "homo. raw concordance"
+						#	print base_set
+						#	print r_allele_set[p]
+						#	print [len(s-NoneSet) - len(s-base_set) for s in r_allele_set[p]]
+						#	print all_set
+						#	print no_miss_set
+						#	print base_set
+						#	sys.exit(1)
+						#if(is_snp):
+						#	print working_pos, is_snp, p, base_set, all_set, f_allele_set[p]
+						f_concord[2] += 1
+						f_snp_concord[2] += is_snp		
+						id_concord[p][1][1] += 1
+						id_snp_concord[p][1][1] += is_snp						
 					else:
-						
 						f_concord[-1] += 1
 						f_snp_concord[-1] += is_snp
+						id_concord[p][1][-1] += 1
+						id_snp_concord[p][1][-1] += is_snp						
 				else:
 					f_concord[0] += 1
 					f_snp_concord[0] += is_snp
+					id_concord[p][1][0] += 1
+					id_snp_concord[p][1][0] += is_snp						
+					
 						
 	print "Raw Results"
 	print "==========="
@@ -231,6 +281,27 @@ if __name__ == "__main__":
 	print_concord(f_concord)
 	print "\nSNPs Only:"
 	print_concord(f_snp_concord)
+	
+	print "\n\nBy Sample(Raw, All):"
+	print "============="
+	for p in common_ids:
+		print_samp_concord(p, id_concord[p][0]);
+
+	print "\n\nBy Sample(Raw, SNP):"
+	print "============="
+	for p in common_ids:
+		print_samp_concord(p, id_snp_concord[p][0]);
+		
+	print "\n\nBy Sample(Filtered, All):"
+	print "============="
+	for p in common_ids:
+		print_samp_concord(p, id_concord[p][1]);
+		
+	print "\n\nBy Sample(Filtered, SNP):"
+	print "============="
+	for p in common_ids:
+		print_samp_concord(p, id_snp_concord[p][1]);				
+	
 	
 					
 	exit(0)

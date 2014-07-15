@@ -115,7 +115,7 @@ JAVA_OPTIONS="-d64 -Xms512m -Xmx27G" GenomeAnalysisTK \
 	-T CombineVariants \
 	-R $REF_GENOME \
 	-filteredRecordsMergeType KEEP_IF_ALL_UNFILTERED \
-	$(ls -1 $IN_DIR/*.vcf | sed -e 's/^/-V /' -e 's/\n//g') \
+	$(ls -1 $IN_DIR/*.vcf $IN_DIR/*.vcf.gz 2>/dev/null | sed -e 's/^/-V /' | tr '\n' ' ') \
 	-o "$OUT_F"
 
 tabix -p vcf "$OUT_F"

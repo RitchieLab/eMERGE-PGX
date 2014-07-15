@@ -36,6 +36,9 @@ REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/human_g1k_v37_decoy.fasta"
 BASE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/input/$SITE"
 #BASE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/96_control/$SITE"
 
+# Override the "COMBINED" directive when comparing pipelines for 96_control
+COMBINED=0
+
 # This is a file of BAM files, one per line.
 BAM_LIST="$BASE_DIR/bamlist3"
 
@@ -65,7 +68,8 @@ GVCFLIST="$BASE_DIR/gvcflist"
 N_min=$(( 90 ))
 
 # get a list of unique IDs for the bamlist
-IDLIST=($(sed -e 's|^.*/||' -e 's|\.bam$||' "$BAM_LIST"))
+IDLIST=($(sed -e 's|^.*/||' -e 's|\.bam.*$||' "$BAM_LIST"))
+
 GREP_SUFF=".bam"
 if [ -n "$RENAME" ] && [ "$RENAME" -ne 0 ] ; then
 	IDLIST=($(sort -k2,2 -u "$BAM_LIST" | cut -f2))
@@ -96,7 +100,7 @@ fi
 
 for id in "${IDLIST[@]}" ; do
 
-	echo $id
+#	echo $id
 		
 	BAM_FNS=$(grep "${id}${GREP_SUFF}" "$BAM_LIST")
 	N_SAMPLES=1
@@ -105,14 +109,16 @@ for id in "${IDLIST[@]}" ; do
 	
 	TIME_STR=$(printf "%02d:%02d:00" $((N_min_id / 60)) $((N_min_id % 60)))
 	
-	echo -e "${OUTPUT_DIR}/${id}.vcf.gz" >> $GVCFLIST
+	if [ -z "$RERUN" ] || [ "$RERUN" -eq 0 ] ; then
+		echo -e "${OUTPUT_DIR}/${id}.vcf.gz" >> $GVCFLIST
+	fi
 
 	CALLED=0
 
 	# Add a check for a combination release - we don't need to re-call single files, just symlink them!!
-	if [ -n "$COMBINED" ] && [ "$COMBINED" -ne 0 ] && [ "$N_SAMPLES" -eq 1 ]; then
+	if [ -n "$COMBINED" ] && [ "$COMBINED" -ne 0 ]; then
 		# Find the gvzf of interest
-		GVCF_FNS=$(find /gpfs/group1/m/mdr23/projects/eMERGE-PGX/input/ -type f -name "${id}.vcf.gz")
+		GVCF_FNS=$(find /gpfs/group1/m/mdr23/projects/eMERGE-PGX/input/ /gpfs/group1/m/mdr23/projects/eMERGE-PGX/96_control/ -type f -name "${id}.vcf.gz")
 		N_GVCF=$(printf '%s\n' "$GVCF_FNS" | wc -l)
 		
 		if [ "$N_GVCF" -eq 1 ]; then
@@ -122,8 +128,8 @@ for id in "${IDLIST[@]}" ; do
 	fi
 	
 	if [ "$CALLED" -eq 0 ] ; then
-		echo "pass"
-		#qsub -N call_variants3 -l walltime=${TIME_STR} -v PREFIX="${OUTPUT_DIR}/${id}",BAM_LIST="$BAM_FNS",REFERENCE=$REFERENCE,RENAME=$RENAME -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/callVars.pbs
+		#echo "pass $id"
+		qsub -N call_variants3 -l walltime=${TIME_STR} -v PREFIX="${OUTPUT_DIR}/${id}",BAM_LIST="$BAM_FNS",REFERENCE=$REFERENCE,RENAME=$RENAME -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/callVars.pbs
 	fi
 	
 done

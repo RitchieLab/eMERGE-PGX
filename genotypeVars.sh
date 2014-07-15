@@ -24,14 +24,14 @@ N_THREAD=1
 
 # The base directory for the analysis.
 # These can be modified with the OUTPUT_DIR and PREFIX variables
-BASE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/input/$SITE"
-#BASE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/96_control/$SITE"
+#BASE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/input/$SITE"
+BASE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/96_control/$SITE"
 
 # This is a file of BAM files, one per line.
 BAM_LIST="$BASE_DIR/bamlist3"
 
-OUTPUT_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/output/VCF"
-#OUTPUT_DIR="$BASE_DIR/VCF"
+#OUTPUT_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/output/VCF"
+OUTPUT_DIR="$BASE_DIR/VCF"
 
 GVCFLIST="$BASE_DIR/gvcflist"
 
@@ -52,6 +52,11 @@ PREFIX="$SITE.v3"
 
 ###==========================================================================================================
 # DO NOT EDIT ANYTHING BELOW THIS LINE (unless you're brave)!!
+
+if test ! -d "$BASE_DIR"; then
+	echo "ERROR: Could not find base directory.  Do you have the correct site?"
+	exit 1
+fi
 
 if test ! -d "$PBS_DIR"; then
 	mkdir -p $PBS_DIR

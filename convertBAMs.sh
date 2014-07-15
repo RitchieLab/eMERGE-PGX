@@ -2,9 +2,9 @@
 
 # EDIT THE FOLLOWING VARIABLES:
 
-SITE="mtsinai_convert"
+SITE="mayo"
 
-INPUT_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGX-control/mtsinai/PGRNseq2013/BAMs"
+INPUT_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGX-control/mayo"
 
 #============================================================================================================
 

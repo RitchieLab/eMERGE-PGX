@@ -91,6 +91,9 @@ if __name__ == "__main__":
 	ref = ['' for f in vcf_list]
 	alt = ['' for f in vcf_list]
 	
+	gt_idx = [None for f in vcf_list]
+	ft_idx = [None for f in vcf_list]
+	
 	r_comp_sites = 0
 	f_comp_sites = 0
 	r_comp_extra = 0
@@ -108,12 +111,20 @@ if __name__ == "__main__":
 					curr_pos[i] = (curr_line[i][0], int(curr_line[i][1]))
 					ref[i] = curr_line[i][3]
 					alt[i] = curr_line[i][4].split(',')
+					try:
+						ft_idx[i] = curr_line[i][8].split(':').index('FT')
+					except ValueError:
+						ft_idx[i] = None
+					
+					gt_idx[i] = curr_line[i][8].split(':').index('GT')
 				except StopIteration:
 					at_eof[i] = 1
 					to_advance[i] = 0
 					curr_pos[i] = ('',-1)
 					ref[i] = ''
 					alt[i] = ['']
+					gt_idx[i] = -1
+					ft_idx[i] = -1
 		
 		cand_pos = set(curr_pos)
 		
@@ -193,11 +204,12 @@ if __name__ == "__main__":
 				if to_advance[i]:
 					for p in common_ids:
 						# geno will be either 0,1,2 (normal encoding), or -1 (missing)
-						geno = max(-1,sum((int(k) for k in g[vcf_ids[i][p]].split(':')[0].replace('.','-1').split('/'))))
+						geno = max(-1,sum((int(k) for k in g[vcf_ids[i][p]].split(':')[gt_idx[i]].replace('.','-1').split('/'))))
+						geno_filter = ft_idx[i] is None or g[vcf_ids[i][p]].split(':')[ft_idx[i]] == "PASS"
 						r_called[i] += (geno > 0)
 						r_geno_count[p][geno] += 1
 							
-						if f_alts and filter_status[i]:
+						if f_alts and filter_status[i] and geno_filter:
 							f_called[i] += (geno > 0)
 							f_geno_count[p][geno] += 1
 						# NOTE: do we want to treat filtered as "missing" or "not present"?

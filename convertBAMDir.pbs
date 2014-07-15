@@ -25,7 +25,7 @@
 #PBS -m bae
 
 ####### restart job from the beginning if it crashes (will overwrite previous output!): [y]es, [n]o
-##PBS -r y
+#PBS -r y
 
 ####### special queue name (we have "lionxf-mdr23" on LionXF only)
 ####### leave this out to let our qsub wrapper detect and use any available priority queue
@@ -134,7 +134,7 @@ samtools sort -n "$BAM_FILE" "$TMPDIR/$BASE_FN.sorted"
 
 # convert paired-end fastq
 bedtools bamtofastq -i "$TMPDIR/$BASE_FN.sorted.bam" -fq "$TMPDIR/$BASE_FN.1.fastq" -fq2 "$TMPDIR/$BASE_FN.2.fastq"
-ls -alh "$TMPDIR"
+#ls -alh "$TMPDIR"
 
 # convert BAM to FASTQ
 #bamtools convert -in $BAM_FILE -format fastq > "$TMPDIR/$BASE_FN.fastq"
@@ -156,7 +156,7 @@ $REF_GENOME \
 "$TMPDIR/$BASE_FN.2.fastq" \
 -f "$TMPDIR/$BASE_FN.2.sai"
 
-ls -alh "$TMPDIR"
+#ls -alh "$TMPDIR"
 
 bwa sampe \
 -r "$READ_HEADER" \

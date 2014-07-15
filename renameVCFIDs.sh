@@ -2,7 +2,7 @@
 
 # set to 1 if you want to have only 1 ID ("merging")
 # set to 0 to allow for multiple IDs (checking for consistency)
-UNIQUE=0
+UNIQUE=1
 
 OLD_VCF_FILE="$1"
 if [ -z "$3" ]; then

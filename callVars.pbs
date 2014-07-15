@@ -138,11 +138,19 @@ ORIG_BAMLIST=$(mktemp)
 TMP_BAMLIST=$(mktemp)
 printf '%s\n' "$BAM_LIST" > $ORIG_BAMLIST
 
+# make sure all BAM files are indexed, and if not, index them
+for f in $(cut -f1 $ORIG_BAMLIST); do
+	if test ! -f $(echo $f | sed 's|m$|i|'); then
+		echo "WARNING: could not find BAM index, attempting to index now!"
+		samtools index $f $(echo $f | sed 's|m$|i|')
+	fi
+done
+
 # copy BAM files to tmpdir
-cp $(cut -f1 $ORIG_BAMLIST | tr '\n' ' ') "${TMPDIR}"
+cp $(cut -f1 $ORIG_BAMLIST  | sed 's|\.bam$|.*|' | tr '\n' ' ') "${TMPDIR}"
 
 # rename the bamlsit appropriately
-cat $ORIG_BAMLIST | sed "s|.*/|${TMPDIR}|" > $TMP_BAMLIST
+cat $ORIG_BAMLIST | sed "s|.*/|${TMPDIR}/|" > $TMP_BAMLIST
 
 if [ -n "$RENAME" ] && [ "$RENAME" -ne 0 ] ; then
 	ADDL_CMD="-sample_rename_mapping_file $TMP_BAMLIST"
@@ -151,7 +159,7 @@ fi
 VCF_FN=$(echo $PREFIX | sed 's|.*/||')
 
 # Call variants
-INLIST=$(cut -f1 "$TMP_BAM_LIST" | sed -e "s|^|-I |")
+INLIST=$(cut -f1 "$TMP_BAMLIST" | sed -e "s|^|-I |")
 
 JAVA_OPTIONS="-d64 -Xms512m -Xmx3G" GenomeAnalysisTK-3.1-1.jrw32 \
 -T HaplotypeCaller \

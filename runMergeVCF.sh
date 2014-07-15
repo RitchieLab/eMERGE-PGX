@@ -1,15 +1,16 @@
 #!/bin/bash
 
 
-IN_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGX/20140416_nw/e_roden_pgxnw_873/rawdataset_to_PI_CC/VCF"
+IN_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGX-control/uw/VCF"
 
-SITE="20140416_nw"
+SITE="uw"
 
 REFERENCE="/gpfs/group/mdr23/datasets/GATK/2.5/human_g1k_v37_decoy.fasta"
 
 #============= Variables based on inputs, be careful!! ===================
 
-OUT_DIR="/gpfs/group/mdr23/projects/eMERGE-PGX/input/$SITE/VCF/"
+#OUT_DIR="/gpfs/group/mdr23/projects/eMERGE-PGX/input/$SITE/VCF/"
+OUT_DIR="/gpfs/group/mdr23/projects/eMERGE-PGX/96_control/$SITE/VCF/"
 
 PREFIX="$OUT_DIR/$SITE"
 
