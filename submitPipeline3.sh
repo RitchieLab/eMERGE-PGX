@@ -18,10 +18,6 @@ fi
 
 SITE="$1"
 
-# Detect "combination" job based on the first character of the site.
-# individual sites are ALWAYS <date(YYYYMMDD)>_<site>
-# combined releases are ALWAYS <combined|merged>_<date(YYYYMMDD)>
-COMBINED=$(echo $SITE | grep '^[^0-9]' | wc -l)
 
 # Reference that everything was aligned to
 # We should ALWAYS use GRCh37!
@@ -36,8 +32,10 @@ REFERENCE="/gpfs/group1/m/mdr23/datasets/GATK/2.5/human_g1k_v37_decoy.fasta"
 BASE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/input/$SITE"
 #BASE_DIR="/gpfs/group1/m/mdr23/projects/eMERGE-PGX/96_control/$SITE"
 
-# Override the "COMBINED" directive when comparing pipelines for 96_control
-COMBINED=0
+# Detect "combination" job based on the first character of the site.
+# individual sites are ALWAYS <date(YYYYMMDD)>_<site>
+# combined releases are ALWAYS <combined|merged>_<date(YYYYMMDD)>
+COMBINED=$(( $(echo $SITE | grep '^[^0-9]' | wc -l) - $(echo $BASE_DIR | grep '96_control' | wc -l) )) 
 
 # This is a file of BAM files, one per line.
 BAM_LIST="$BASE_DIR/bamlist3"
@@ -64,8 +62,8 @@ N_BAM=$(wc -l $BAM_LIST| cut -d' ' -f1)
 GVCFLIST="$BASE_DIR/gvcflist"
 
 	
-# Assume 90 mins per sample to generate a GVCF
-N_min=$(( 90 ))
+# Assume 3 hrs  per sample to generate a GVCF
+N_min=$(( 180 ))
 
 # get a list of unique IDs for the bamlist
 IDLIST=($(sed -e 's|^.*/||' -e 's|\.bam.*$||' "$BAM_LIST"))
@@ -100,8 +98,8 @@ fi
 
 for id in "${IDLIST[@]}" ; do
 
-#	echo $id
-		
+	#echo "start $id"
+
 	BAM_FNS=$(grep "${id}${GREP_SUFF}" "$BAM_LIST")
 	N_SAMPLES=1
 	N_SAMPLES=$(printf '%s\n' "$BAM_FNS" | wc -l)
@@ -121,15 +119,21 @@ for id in "${IDLIST[@]}" ; do
 		GVCF_FNS=$(find /gpfs/group1/m/mdr23/projects/eMERGE-PGX/input/ /gpfs/group1/m/mdr23/projects/eMERGE-PGX/96_control/ -type f -name "${id}.vcf.gz")
 		N_GVCF=$(printf '%s\n' "$GVCF_FNS" | wc -l)
 		
-		if [ "$N_GVCF" -eq 1 ]; then
+		if test -z "${GVCF_FNS}"; then
+			echo "WARNING: could not find $id, please check the calling site"
+			CALLED=1;
+			#ln -sf "${GVCF_FNS}"* "${OUTPUT_DIR}"
+		elif [ "$N_GVCF" -eq 1 ]; then
 			CALLED=1;
 			ln -sf "${GVCF_FNS}"* "${OUTPUT_DIR}"
+		#else
+		#	echo "${GVCF_FNS}"
 		fi
 	fi
 	
 	if [ "$CALLED" -eq 0 ] ; then
-		#echo "pass $id"
-		qsub -N call_variants3 -l walltime=${TIME_STR} -v PREFIX="${OUTPUT_DIR}/${id}",BAM_LIST="$BAM_FNS",REFERENCE=$REFERENCE,RENAME=$RENAME -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/callVars.pbs
+		echo -n "$id: "
+		qsub -N call_variants3 -l walltime=${TIME_STR} -v PREFIX="${OUTPUT_DIR}/${id}",GREP_STMT="${id}${GREP_SUFF}",BAM_LIST="$BAM_LIST",REFERENCE=$REFERENCE,RENAME=$RENAME -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/callVars.pbs
 	fi
 	
 done

@@ -4,7 +4,7 @@
 
 SITE="mayo"
 
-INPUT_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGX-control/mayo"
+INPUT_DIR="/gpfs/group1/m/mdr23/datasets/eMERGE-PGX-control/mayo/last_3"
 
 #============================================================================================================
 

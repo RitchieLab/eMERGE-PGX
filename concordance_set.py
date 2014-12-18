@@ -14,15 +14,50 @@ def print_dict(d):
 			
 def print_concord(c):
 	r = [100*v / float(sum(c)) for v in c]
-	print "Concordance:", "%.3f" % r[0]
+	print "Total Concordance:", "%.3f" % (r[0] + r[3] + r[4] + r[5])
+	print "  Ref/Ref Concordance:", "%.3f" % r[3]
+	print "  NonRef/NonRef Concordance:", "%.3f" % (r[0] + r[4] + r[5])
+	print "    Het/Het Concordance:", "%.3f" % r[4]
+	print "    Missing Concordance:", "%.3f" % r[5]
+
 	print "Total Discord:", "%.3f" % (r[1] + r[2])
-	print "Heterozygous Discord:", "%.3f" % r[1]
-	print "Homozygous Discord:", "%.3f" % r[2]
+	print "  Heterozygous Discord:", "%.3f" % r[1]
+	print "  Homozygous Discord:", "%.3f" % r[2]
 	print "Missing Discord:", "%.3f" % r[-1]
 
 def print_samp_concord(samp_id, c):
 	r = [100*v / float(sum(c)) for v in c]
 	print samp_id, ":", "%.3f / %.3f" % (r[1], r[-1])
+
+def get_MAF(x):
+	"""
+	Gets the MAF given the info string
+	"""
+	for a in x.split(';'):
+		if a.startswith("MLEAF"):
+			key, val = a.split("=")
+			afs = [float(v) for v in val.split(',')]
+			afs.append(1-sum(afs))
+			afs.sort(reverse=True)
+			return afs[1]
+	
+	return 0
+	
+def to_allele_str(x):
+	if len(x) == 1:
+		if None in x:
+			return './.'
+		else:
+			s = x.pop()
+			x.add(s)
+			return s + '/' + s
+	else:
+		s1 = x.pop()
+		s2 = x.pop()
+		x.add(s1)
+		x.add(s2)
+		return s1 + '/' + s2
+		
 
 if __name__ == "__main__":
 
@@ -63,9 +98,12 @@ if __name__ == "__main__":
 
 	# a true/false of whether or not to advance the VCF position on the iteration of the loop
 	to_advance = [1 for f in vcf_list]
+	is_variant = [0 for f in vcf_list]
 	curr_pos = [('0',0) for f in vcf_list]
 	curr_line = ['' for f in vcf_list]
 	at_eof = [0 for f in vcf_list]
+	oparen = ['(' for f in vcf_list]
+	cloparen = [')' for f in vcf_list]
 	
 	prev_pos = ('0',0)
 	seen_chrom = set()
@@ -73,18 +111,35 @@ if __name__ == "__main__":
 	ref = [None for f in vcf_list]
 	alt = [None for f in vcf_list]
 	allele = [None for f in vcf_list]
+	maf = [0 for f in vcf_list]
 	
 	gt_idx = [None for f in vcf_list]
 	ft_idx = [None for f in vcf_list]
 
-	r_concord = [0, 0, 0, 0]
-	f_concord = [0, 0, 0, 0]
+	# concordance is:
+	# Hom. Alt concordance
+	# Het. Discord
+	# Hom. Discord
+	# Ref/Ref Concord
+	# Het. Concord
+	# Missing Concord
+	# missing discord
+	r_concord = [0, 0, 0, 0, 0, 0, 0]
+	f_concord = [0, 0, 0, 0, 0, 0, 0]
 	
-	r_snp_concord = [0, 0, 0, 0]
-	f_snp_concord = [0, 0, 0, 0]
+	r_snp_concord = [0, 0, 0, 0, 0, 0, 0]
+	f_snp_concord = [0, 0, 0, 0, 0, 0, 0]
+	
+	r_novel_concord = [0, 0, 0, 0, 0, 0, 0]
+	f_novel_concord = [0, 0, 0, 0, 0, 0, 0]
+	
+	r_snp_novel_concord = [0, 0, 0, 0, 0, 0, 0]
+	f_snp_novel_concord = [0, 0, 0, 0, 0, 0, 0]
 	
 	id_concord = {p : [[0,0,0],[0,0,0]] for p in common_ids}
 	id_snp_concord = {p : [[0,0,0],[0,0,0]] for p in common_ids}
+	
+	discord_details = []
 	
 	while not all(at_eof):
 		for i,f in enumerate(vcf_list):
@@ -94,9 +149,11 @@ if __name__ == "__main__":
 					curr_pos[i] = (curr_line[i][0], int(curr_line[i][1]))
 					ref[i] = curr_line[i][3]
 					alt[i] = curr_line[i][4].replace('.','').split(',')
+					maf[i] = get_MAF(curr_line[i][7])
 					if len(alt[i]) == 1 and len(alt[i][0]) == 0:
 						alt[i] = []
 					allele[i] = [ref[i]] + alt[i] + [None]
+					is_variant[i] = (len(alt[i]) > 0)
 					try:
 						ft_idx[i] = curr_line[i][8].split(':').index('FT')
 					except ValueError:
@@ -106,6 +163,8 @@ if __name__ == "__main__":
 				except StopIteration:
 					at_eof[i] = 1
 					to_advance[i] = 0
+					is_variant[i] = 0
+					maf[i] = 0
 					curr_pos[i] = ('',-1)
 					ref[i] = None
 					alt[i] = None
@@ -139,8 +198,10 @@ if __name__ == "__main__":
 				
 		to_advance = [c == working_pos for c in curr_pos]
 		
-		# only perform concordance check if called in both sites!
-		if all(to_advance):
+		# only perform concordance check if called in both sites and at least one site has a variant!
+		if all(to_advance) and any(is_variant):
+		
+			is_novel = all( (curr_line[i][2] == "." for i,v in enumerate(to_advance)) )
 			is_snp = all( (all( (len(s)==1 for s in allele_list[:-1]) ) for allele_list in allele ) )
 #			print is_snp, allele
 	
@@ -161,7 +222,7 @@ if __name__ == "__main__":
 #					if p == '38913308':
 #						print i, vcf_ids[i][p], g[vcf_ids[i][p]], g[vcf_ids[i][p]].split(':')[gt_idx[i]].replace('.','-1').split('/')
 					
-					geno_set = set(g[vcf_ids[i][p]].split(':')[gt_idx[i]].replace('.','-1').split('/'))
+					geno_set = set(g[vcf_ids[i][p]].split(':')[gt_idx[i]].replace('.','-1').replace('|', '/').split('/'))
 					passed = filter_status[i] and (ft_idx[i] is None or g[vcf_ids[i][p]].split(':')[ft_idx[i]] == "PASS")
 					
 					r_allele_set[p][i] = set(allele[i][int(g_idx)] for g_idx in geno_set)
@@ -169,6 +230,7 @@ if __name__ == "__main__":
 				
 			
 			# Now check the allele_set
+						
 			for p in common_ids:
 #				print curr_pos, p, r_allele_set[p]
 			
@@ -176,6 +238,9 @@ if __name__ == "__main__":
 				all_set = set.union(*r_allele_set[p])
 				
 #				print base_set, all_set
+
+				r_discord = True
+				f_discord = True
 					
 				# Uh-oh! there's a discordance!	
 				if base_set != all_set:
@@ -186,9 +251,11 @@ if __name__ == "__main__":
 					if len(base_set) == 1:
 						r_concord[1] += 1
 						r_snp_concord[1] += is_snp
+						r_novel_concord[1] += is_novel
+						r_snp_novel_concord[1] += is_snp and is_novel
 						id_concord[p][0][1] += 1
 						id_snp_concord[p][0][1] += is_snp						
-						
+					
 						# otherwise, let's check for homozygous discord
 					elif sum((len(s-NoneSet) - len(s-base_set)) == 0 for s in r_allele_set[p]) > 1:
 						#if(is_snp):
@@ -202,6 +269,8 @@ if __name__ == "__main__":
 						#	sys.exit(1)
 						r_concord[2] += 1
 						r_snp_concord[2] += is_snp
+						r_novel_concord[2] += is_novel
+						r_snp_novel_concord[2] += is_snp and is_novel
 						id_concord[p][0][1] += 1
 						id_snp_concord[p][0][1] += is_snp						
 					else:
@@ -216,11 +285,20 @@ if __name__ == "__main__":
 						#	sys.exit(1)
 						r_concord[-1] += 1
 						r_snp_concord[-1] += is_snp
+						r_novel_concord[-1] += is_novel
+						r_snp_novel_concord[-1] += is_snp and is_novel
 						id_concord[p][0][-1] += 1
 						id_snp_concord[p][0][-1] += is_snp						
 				else:
-					r_concord[0] += 1
-					r_snp_concord[0] += is_snp
+					# OK, so we know it's concordant - let's check if it's ref/ref
+					r_discord = False
+					isref = (len(base_set) == 1 and len(base_set - set(ref)) == 0)
+					ishet = (len(base_set) > 1)
+					ismiss = (len(base_set) == 1 and len(base_set - NoneSet) == 0)
+					r_concord[0 + 3*isref + 4*ishet + 5*ismiss] += 1
+					r_snp_concord[0 + 3*isref + 4*ishet + 5*ismiss] += is_snp
+					r_novel_concord[0 + 3*isref + 4*ishet + 5*ismiss] += is_novel
+					r_snp_novel_concord[0 + 3*isref + 4*ishet + 5*ismiss] += is_snp and is_novel
 					id_concord[p][0][0] += 1
 					id_snp_concord[p][0][0] += is_snp						
 					
@@ -237,7 +315,9 @@ if __name__ == "__main__":
 #						if(is_snp):
 #							print working_pos, is_snp, p, base_set, all_set, f_allele_set[p]
 						f_concord[1] += 1
-						f_snp_concord[1] += is_snp						
+						f_snp_concord[1] += is_snp
+						f_novel_concord[1] += is_novel
+						f_snp_novel_concord[1] += is_snp and is_novel
 						id_concord[p][1][1] += 1
 						id_snp_concord[p][1][1] += is_snp						
 					elif sum((len(s-NoneSet) - len(s-base_set)) == 0 for s in f_allele_set[p]) > 1:
@@ -253,27 +333,56 @@ if __name__ == "__main__":
 						#if(is_snp):
 						#	print working_pos, is_snp, p, base_set, all_set, f_allele_set[p]
 						f_concord[2] += 1
-						f_snp_concord[2] += is_snp		
+						f_snp_concord[2] += is_snp
+						f_novel_concord[2] += is_novel
+						f_snp_novel_concord[2] += is_snp and is_novel
 						id_concord[p][1][1] += 1
 						id_snp_concord[p][1][1] += is_snp						
 					else:
 						f_concord[-1] += 1
 						f_snp_concord[-1] += is_snp
+						f_novel_concord[-1] += is_novel
+						f_snp_novel_concord[-1] += is_snp and is_novel
 						id_concord[p][1][-1] += 1
 						id_snp_concord[p][1][-1] += is_snp						
 				else:
-					f_concord[0] += 1
-					f_snp_concord[0] += is_snp
+					# Again, check for ref/ref concordance
+					f_discord = False
+					isref = (len(base_set) == 1 and len(base_set - set(ref)) == 0)
+					ishet = (len(base_set) > 1)
+					ismiss = (len(base_set) == 1 and len(base_set - NoneSet) == 0)					
+					f_concord[0 + isref * 3+ 4*ishet + 5*ismiss] += 1
+					f_snp_concord[0 + isref * 3+ 4*ishet + 5*ismiss] += is_snp
+					f_novel_concord[0 + isref * 3+ 4*ishet + 5*ismiss] += is_novel
+					f_snp_novel_concord[0 + isref * 3+ 4*ishet + 5*ismiss] += is_snp and is_novel
 					id_concord[p][1][0] += 1
-					id_snp_concord[p][1][0] += is_snp						
+					id_snp_concord[p][1][0] += is_snp
 					
-						
+				
+				# OK, if there was a discordance, print everything we know!
+				if r_discord or f_discord:
+					raw_alleles = [to_allele_str(al_s) for al_s in r_allele_set[p]]
+					filt_allele = [to_allele_str(al_s) for al_s in f_allele_set[p]]
+					
+					allele_str = ' '.join(':'.join(s) for s in zip(raw_alleles, filt_allele)) 
+					pos_str = working_pos[0] + ":" + str(working_pos[1])
+					allele_type = ("INDEL","SNP")[is_snp]
+					novel_type = ("dbSNP", "NOVEL")[is_novel]
+					
+					to_add = " ".join([pos_str, p, allele_type, novel_type, allele_str, " ".join((str(m) for m in maf))])
+					discord_details.append(to_add)
+		
+					
 	print "Raw Results"
 	print "==========="
 	print "Total:"
 	print_concord(r_concord)
 	print "\nSNPs Only:"
 	print_concord(r_snp_concord)
+	print "\nNovel:"
+	print_concord(r_novel_concord)
+	print "\nNovel SNPs Only:"
+	print_concord(r_snp_novel_concord)
 
 	print "\n\nFiltered Results"
 	print "==========="
@@ -281,6 +390,10 @@ if __name__ == "__main__":
 	print_concord(f_concord)
 	print "\nSNPs Only:"
 	print_concord(f_snp_concord)
+	print "\nNovel:"
+	print_concord(f_novel_concord)
+	print "\nNovel SNPs Only:"
+	print_concord(f_snp_novel_concord)
 	
 	print "\n\nBy Sample(Raw, All):"
 	print "============="
@@ -303,226 +416,8 @@ if __name__ == "__main__":
 		print_samp_concord(p, id_snp_concord[p][1]);				
 	
 	
-					
-	exit(0)
+	print "\n\nRaw Concordance details"
+	print "--------------------"
+	print "chr:pos ID Type Novelty Allele1(raw:filt) Allele2(raw:filt) MAF1 MAF2"
 	
-	r_site_count = {}
-	f_site_count = {}
-	
-	r_referent_count = {}
-	f_referent_count = {}
-	
-	r_polyallelic_count = {}
-	f_polyallelic_count = {}
-	
-	r_alt_disagree = 0
-	f_alt_disagree = 0
-	r_alt_discord = 0
-	f_alt_discord = 0
-	
-	r_single_concord = [0, 0, 0, 0]
-	f_single_concord = [0, 0, 0, 0]
-	
-	r_all_concord = [0, 0, 0, 0]
-	f_all_concord = [0, 0, 0, 0]
-
-	
-	r_comp_sites = 0
-	f_comp_sites = 0
-	r_comp_extra = 0
-	f_comp_extra = 0
-	r_single = 0
-	f_single = 0
-	
-	nonref = set((frozenset([i]) for i in ['.','']))
-	
-	while True:
-		cand_pos = set(curr_pos)
-		
-		if len(cand_pos) == 1:
-			working_pos = cand_pos.pop()
-		else:
-			# First find all current chrom positions
-			chrom_pos = [(c, p) for c,p in cand_pos if c == prev_pos[0]]
-			chrom_pos.sort()
-			if len(chrom_pos) >= 1:
-				working_pos = chrom_pos[0]
-			else:
-				all_pos = [(c,p) for c,p in cand_pos]
-				all_pos.sort()
-				working_pos = all_pos[0]
-				if working_pos[0] in seen_chrom:
-					print >> sys.stderr, "WARNING: Chromosomes in VCF files may not be in identical order: please sort VCF files by chromosome and then position"
-				
-		seen_chrom.add(working_pos[0])
-		prev_pos = working_pos
-			
-		if working_pos == ('', -1):
-			continue
-			
-		#print working_pos
-				
-		to_advance = [c == working_pos for c in curr_pos]
-		
-			
-		in_raw = tuple((i for i, v in enumerate(to_advance) if v))
-		in_filtered = tuple((i for i, v in enumerate(filter_status) if v))
-		
-		r_site_count[in_raw] = r_site_count.get(in_raw,0)+1
-		f_site_count[in_filtered] = f_site_count.get(in_filtered,0)+1
-		
-		raw_referent = tuple((j for j,x in enumerate([(v and alt[i][0] == '.') for i,v in enumerate(to_advance)]) if x))
-		filt_referent = tuple((j for j,x in enumerate([(v and alt[i][0] == '.') for i,v in enumerate(filter_status)]) if x))
-		
-		r_referent_count[raw_referent] = r_referent_count.get(raw_referent,0)+1
-		f_referent_count[filt_referent] = f_referent_count.get(filt_referent,0)+1
-		
-		raw_poly = tuple((j for j,x in enumerate([(v and len(alt[i]) > 1) for i,v in enumerate(to_advance)]) if x))
-		filt_poly = tuple((j for j,x in enumerate([(v and len(alt[i]) > 1) for i,v in enumerate(filter_status)]) if x))
-		
-		r_polyallelic_count[raw_poly] = r_polyallelic_count.get(raw_poly,0)+1
-		f_polyallelic_count[filt_poly] = f_polyallelic_count.get(filt_poly,0)+1
-		
-		r_alts = set((frozenset(alt[i]) for i,v in enumerate(to_advance) if v)) - nonref
-		f_alts = set((frozenset(alt[i]) for i,v in enumerate(filter_status) if v)) - nonref
-		
-		r_alt_list = [(len(s), s) for s in r_alts]
-		r_alt_list.sort(reverse=True)
-		
-		f_alt_list = [(len(s), s) for s in f_alts]
-		f_alt_list.sort(reverse=True)
-
-		
-		# check for a superset of alleles
-		r_alt_discord += (sum((len(v[1] - r_alt_list[0][1]) for v in r_alt_list[1:])) > 0)
-		f_alt_discord += (sum((len(v[1] - f_alt_list[0][1]) for v in f_alt_list[1:])) > 0)
-		
-		r_alt_disagree += (len(r_alts) > 1)
-		f_alt_disagree += (len(f_alts) > 1)
-		
-		
-
-			
-		if len(r_alts) == 1 and sum(len(a) for a in r_alts) == 1:
-			r_comp_extra += (len(set((frozenset(alt[i]) for i,v in enumerate(to_advance) if v))) > 1)
-			f_comp_extra += (sum(filter_status) > 1 and len(set((frozenset(alt[i]) for i,v in enumerate(filter_status) if v))) > 1) 
-			r_comp_sites += 1
-			f_comp_sites += (sum(filter_status) > 1)
-			# list is [# homo. ref., # hetero., # homo alt, # missing]
-			r_geno_count = {p : [0,0,0,0] for p in common_ids}
-			f_geno_count = {p : [0,0,0,0] for p in common_ids}
-			r_called = [0 for i in curr_line]
-			f_called = [0 for i in curr_line]
-
-						# NOTE: do we want to treat filtered as "missing" or "not present"?
-						#else:
-						#	f_geno_count[p][-1] += 1
-				
-			r_curr_concord = [sum((sum((n*(n-1)/2 for n in v)) for v in r_geno_count.itervalues())),
-							  sum((v[0]*v[1] + v[1]*v[2] for v in r_geno_count.itervalues())),
-							  sum((v[0]*v[2] for v in r_geno_count.itervalues())),
-							  sum((v[-1]*(v[0] + v[1] + v[2]) for v in r_geno_count.itervalues()))]
-#			print working_pos  
-#			print r_curr_concord
-			
-			prev_all = sum(f_all_concord)
-			
-			r_all_concord[2] += sum((v[0]>0 and v[2]>0) for v in r_geno_count.itervalues())
-			r_all_concord[1] += sum(((not (v[0]>0 and v[2]>0)) and ((v[0]>0 and v[1]>0) or (v[1]>0 and v[2]>0))) for v in r_geno_count.itervalues())
-			r_all_concord[-1] += sum((sum(n>0 for n in v[0:3]) == 1 and (not all(to_advance) or v[3]>0)) for v in r_geno_count.itervalues())
-			r_all_concord[0] += sum(((all(to_advance) and sum(n>0 for n in v) == 1) or sum(n>0 for n in v[0:3]) == 0) for v in r_geno_count.itervalues())
-			
-			f_all_concord[2] += sum((v[0]>0 and v[2]>0) for v in f_geno_count.itervalues())
-			f_all_concord[1] += sum(((not (v[0]>0 and v[2]>0)) and ((v[0]>0 and v[1]>0) or (v[1]>0 and v[2]>0))) for v in f_geno_count.itervalues())
-			f_all_concord[-1] += sum((sum(n>0 for n in v[0:3]) == 1 and (not all(filter_status) or v[3]>0)) for v in f_geno_count.itervalues())
-			f_all_concord[0] += sum(((all(filter_status) and sum(n>0 for n in v) == 1) or sum(n>0 for n in v[0:3]) == 0) for v in f_geno_count.itervalues())	
-							  
-			r_concord = map(operator.add, r_concord, r_curr_concord)
-			
-			f_curr_concord = [sum((sum((n*(n-1)/2 for n in v)) for v in f_geno_count.itervalues())),
-							  sum((v[0]*v[1] + v[1]*v[2] for v in f_geno_count.itervalues())),
-							  sum((v[0]*v[2] for v in f_geno_count.itervalues())),
-							  sum((v[-1]*(v[0] + v[1] + v[2]) for v in f_geno_count.itervalues()))]
-			
-			f_concord = map(operator.add, f_concord, f_curr_concord)
-			
-			if any((v == 1 for v in r_called)):
-				r_single += 1
-				r_single_concord = map(operator.add, r_single_concord, r_curr_concord)
-			
-			if any((v == 1 for v in f_called)):
-				f_single += 1
-				f_single_concord = map(operator.add, f_single_concord, f_curr_concord)
-		
-	
-	
-	print "Sites by file:"
-	
-	print_dict(r_site_count)
-	
-	print "Referent sites by file:"
-	
-	print_dict(r_referent_count)
-
-	print "Polyallelic sites by file:"
-	
-	print_dict(r_polyallelic_count)
-	
-	print "Number of disagreeing ALT:", r_alt_disagree
-	print "Number of discordant ALT:", r_alt_discord
-	
-	print "\nPairwise Concordance Results"
-	print "------------------"
-	print "Total sites:", r_comp_sites
-	print "Total matching sites", r_comp_sites - r_comp_extra
-	
-	print_concord(r_concord)
-	
-	print "\nSingleton Concordance"
-	print "---------------------"
-	print "Total Singletons:", r_single
-		
-	print_concord(r_single_concord)
-	
-	print "\nOverall Concordance"
-	print "-------------------"
-	
-	print_concord(r_all_concord)
-	
-	print "\n\n"
-	
-	print "Filtered Results"
-	print "================"
-	print "Sites by file:"
-	
-	print_dict(f_site_count)
-	
-	print "Referent sites by file:"
-	
-	print_dict(f_referent_count)
-
-	print "Polyallelic sites by file:"
-	
-	print_dict(f_polyallelic_count)
-	
-	print "Number of disagreeing ALT:", f_alt_disagree
-	print "Number of discordant ALT:", f_alt_discord
-	
-	print "\nPairwise Concordance Results"
-	print "------------------"
-	print "Total sites:", f_comp_sites
-	print "Total matching sites", f_comp_sites - f_comp_extra
-	
-	print_concord(f_concord)
-	
-	print "\nSingleton Concordance"
-	print "---------------------"
-	print "Total Singletons:", f_single
-	
-	print_concord(f_single_concord)
-	
-	print "\nOverall Concordance"
-	print "-------------------"
-	
-	print_concord(f_all_concord)
-	
+	print '\n'.join(discord_details)

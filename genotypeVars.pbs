@@ -125,10 +125,10 @@ fi
 #	N_THREAD=6
 #fi
 
-#ADDL_CMD=""
-#if [ -n "$RENAME" ] && [ "$RENAME" -ne 0 ] ; then
-#	ADDL_CMD="-sample_rename_mapping_file $BAM_LIST"
-#fi
+ADDL_CMD=""
+if [ -n "$ALL_SITES" ] && [ "$ALL_SITES" -ne 0 ] ; then
+	ADDL_CMD="-allSites"
+fi
 
 if test ! -z "$(echo $REF_GENOME | grep '\.hg19\.')"; then
 	DBSNP="$ANALYSIS_FILE_DIR/dbsnp_137.hg19.vcf.gz"
@@ -138,7 +138,32 @@ elif test ! -z "$(echo $REF_GENOME | grep '_v37')"; then
 	TARGET_BED="$BED_FILE_DIR/targets.GRCh37.bed"
 fi
 
-JAVA_OPTIONS="-d64 -Xms512m -Xmx12g" GenomeAnalysisTK-3.1-1.jrw32 \
+N_GVCF=$(cat $GVCF_LIST | wc -l)
+echo "# GVCF: $N_GVCF"
+# If I'm over 1,000 GVCFs, break them into smaller chunks (~500 GVCF per chunk)
+if test "$N_GVCF" -gt 1000; then
+	GVCF_TMP=$(mktemp)
+	
+	N_BATCHES=$(( N_GVCF / 500 ))
+	
+	slice=$((N_GVCF / N_BATCHES + ( N_GVCF % N_BATCHES > 0 ) ))
+	cat $GVCF_LIST | shuf | split -a $((N_BATCHES / 10 + 1)) -l $slice -d - "${TMPDIR}/gvcflist."
+	
+	for f in $(ls -1 ${TMPDIR}/gvcflist.*); do
+	
+		JAVA_OPTIONS="-d64 -Xms512m -Xmx12g" GenomeAnalysisTK-3.3-0 \
+		-T CombineGVCFs \
+		-R $REF_GENOME \
+		$(cat $f | sed "s|^|-V |" | tr '\n' ' ') \
+		-o "$f.vcf"
+		
+		echo "$f.vcf" >> $GVCF_TMP
+	done
+	
+	GVCF_LIST=$GVCF_TMP
+fi
+
+JAVA_OPTIONS="-d64 -Xms512m -Xmx12g" GenomeAnalysisTK-3.3-0 \
 -T GenotypeGVCFs \
 -A QualByDepth \
 -A HaplotypeScore \
@@ -147,37 +172,25 @@ JAVA_OPTIONS="-d64 -Xms512m -Xmx12g" GenomeAnalysisTK-3.1-1.jrw32 \
 -A FisherStrand \
 -A GCContent \
 -A AlleleBalance \
+-A GenotypeSummaries $ADDL_CMD \
+-L $TARGET_BED \
 -R $REF_GENOME \
 $(cat $GVCF_LIST | sed "s|^|-V |" | tr '\n' ' ') \
 --dbsnp $DBSNP \
 -o "$TMPDIR/annotated.vcf"
 
-#JAVA_OPTIONS="-d64 -Xms512m -Xmx40g" GenomeAnalysisTK-3.1-1 \
-#-T VariantAnnotator \
-#-R $REF_GENOME \
-#--dbsnp $DBSNP \
-#-L $TARGET_BED \
-#-V "$TMPDIR/raw.vcf" \
-#$(cat $BAM_LIST | cut -f1 | sed "s|^|-I |" | tr '\n' ' ') \
-#-o "$TMPDIR/annotated.vcf" \
-#$ADDL_CMD \
-#-nt $N_THREAD
-
-JAVA_OPTIONS="-d64 -Xms512m -Xmx12g" GenomeAnalysisTK-3.1-1.jrw32 \
+JAVA_OPTIONS="-d64 -Xms512m -Xmx12g" GenomeAnalysisTK-3.3-0 \
 -l ERROR \
 -T VariantFiltration \
 -R $REF_GENOME \
 -V "$TMPDIR/annotated.vcf" \
---filterExpression 'QD<5.0' \
---filterName 'QDFilter' \
---filterExpression 'ABHet>0.75' \
---filterName 'ABFilter' \
---filterExpression 'QUAL<=50.0' \
---filterName 'QUALFilter' \
--G_filter 'GQ<=50.0' \
--G_filterName 'LowQualCall' \
--G_filter '(isHet==1&&AB>0.75)' \
--G_filterName 'ABFilterCall' \
+--filterExpression '(vc.isVariant()&&QUAL<=50.0)' --filterName 'QUALFilter' \
+--filterExpression '((!vc.isVariant())&&DP/NCC<=30.0)' --filterName 'AvgDepthFilter' \
+--filterExpression 'QD<5.0' --filterName 'QDFilter' \
+--filterExpression 'ABHet>0.75' --filterName 'ABFilter' \
+-G_filter '(GQ!=-1&&GQ<=50)' -G_filterName 'LowQualCall' \
+-G_filter '(GQ==-1&&DP<20)' -G_filterName 'DepthFilterCall' \
+-G_filter '(isHet==1&&AB>0.75)' -G_filterName 'ABFilterCall' \
 -o "$PREFIX.vcf.gz" 
 
 tabix -f -p vcf "$PREFIX.vcf.gz"

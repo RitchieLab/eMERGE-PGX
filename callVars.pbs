@@ -122,7 +122,7 @@ if test -z "$PREFIX"; then
 fi
 
 if [ -z "$N_THREAD" ] || [ "$N_THREAD" -lt 1 ] || [ "$N_THREAD" -gt 10 ] ; then
-	N_THREAD=2
+	N_THREAD=1
 fi
 
 
@@ -136,21 +136,42 @@ fi
 
 ORIG_BAMLIST=$(mktemp)
 TMP_BAMLIST=$(mktemp)
-printf '%s\n' "$BAM_LIST" > $ORIG_BAMLIST
+
+
+BAM_FNS=$(grep "${GREP_STMT}" "$BAM_LIST")
+
+printf '%s\n' "$BAM_FNS" > $ORIG_BAMLIST
 
 # make sure all BAM files are indexed, and if not, index them
 for f in $(cut -f1 $ORIG_BAMLIST); do
-	if test ! -f $(echo $f | sed 's|m$|i|'); then
+	if test ! -f $(echo $f | sed 's|m$|i|') -a ! -f "${f}.bai"; then
 		echo "WARNING: could not find BAM index, attempting to index now!"
 		samtools index $f $(echo $f | sed 's|m$|i|')
 	fi
 done
 
 # copy BAM files to tmpdir
-cp $(cut -f1 $ORIG_BAMLIST  | sed 's|\.bam$|.*|' | tr '\n' ' ') "${TMPDIR}"
+for f in $(cut -f1 $ORIG_BAMLIST | sed 's|\.bam$|.*|'); do
+	echo "copying $f to ${TMPDIR}/$(echo $f | cut -d/ -f7).$(echo $f | sed 's|.*/||')"
+	cp $f "${TMPDIR}/$(echo $f | cut -d/ -f7).$(echo $f | sed 's|.*/||')"
+done
+
+touch $TMP_BAMLIST
+
+while read ln; do
+	FN=$(echo $ln | cut -d' ' -f1)
+	ID=$(echo $ln | cut -d' ' -f2)
+	echo "${TMPDIR}/$(echo $FN | cut -d/ -f7).$(echo $FN | sed 's|.*/||') $ID" | tr ' ' '\t' >> $TMP_BAMLIST
+done < $ORIG_BAMLIST
+
+
+echo "BAMLIST:"
+cat $TMP_BAMLIST
+
+#cp $(cut -f1 $ORIG_BAMLIST  | sed 's|\.bam$|.*|' | tr '\n' ' ') "${TMPDIR}"
 
 # rename the bamlsit appropriately
-cat $ORIG_BAMLIST | sed "s|.*/|${TMPDIR}/|" > $TMP_BAMLIST
+#cat $ORIG_BAMLIST | sed "s|.*/|${TMPDIR}/|" > $TMP_BAMLIST
 
 if [ -n "$RENAME" ] && [ "$RENAME" -ne 0 ] ; then
 	ADDL_CMD="-sample_rename_mapping_file $TMP_BAMLIST"
@@ -161,7 +182,9 @@ VCF_FN=$(echo $PREFIX | sed 's|.*/||')
 # Call variants
 INLIST=$(cut -f1 "$TMP_BAMLIST" | sed -e "s|^|-I |")
 
-JAVA_OPTIONS="-d64 -Xms512m -Xmx3G" GenomeAnalysisTK-3.1-1.jrw32 \
+echo "Calling for $PREFIX.vcf.gz"
+
+JAVA_OPTIONS="-d64 -Xms512m -Xmx3G" GenomeAnalysisTK-3.3-0 \
 -T HaplotypeCaller \
 -R $REF_GENOME \
 $INLIST \
@@ -169,7 +192,8 @@ $INLIST \
 -L $TARGET_BED \
 -A AlleleBalanceBySample \
 -mbq 20 \
---downsample_to_coverage 300 \
+-kmerSize 35 \
+-maxNumHaplotypesInPopulation 400 \
 -o "${TMPDIR}/${VCF_FN}.vcf.gz" \
 $ADDL_CMD \
 -ERC GVCF \

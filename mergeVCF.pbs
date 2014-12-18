@@ -111,7 +111,7 @@ fi
 
 OUT_F="$PREFIX.merged.vcf.gz"
 
-JAVA_OPTIONS="-d64 -Xms512m -Xmx27G" GenomeAnalysisTK \
+JAVA_OPTIONS="-d64 -Xms512m -Xmx27G" GenomeAnalysisTK-3.3-0 \
 	-T CombineVariants \
 	-R $REF_GENOME \
 	-filteredRecordsMergeType KEEP_IF_ALL_UNFILTERED \

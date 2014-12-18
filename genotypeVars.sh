@@ -5,6 +5,9 @@
 # set to 1 if you have a mapping of BAM -> ID and you want to use it
 RENAME=1
 
+# set to 1 if you want to call ALL sites, not just variant sites
+ALL_SITES=0
+
 #===========================
 # Only edit the following variables if you know what you're doing!
 if test -z "$1"; then
@@ -76,5 +79,5 @@ fi
 	
 TIME_STR=$(printf "%02d:%02d:00" $((N_min / 60)) $((N_min % 60)))
 	
-qsub -N geno_variants -l walltime=${TIME_STR} -l nodes=1:ppn=$N_THREAD -v PREFIX="${OUTPUT_DIR}/${PREFIX}.ALL",GVCF_LIST="$GVCFLIST",BAM_LIST="$BAM_LIST",RENAME="$RENAME",REFERENCE="$REFERENCE",N_THREAD=$N_THREAD, -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/genotypeVars.pbs
+qsub -N geno_variants -l walltime=${TIME_STR} -l nodes=1:ppn=$N_THREAD -v ALL_SITES="$ALL_SITES",PREFIX="${OUTPUT_DIR}/${PREFIX}.ALL",GVCF_LIST="$GVCFLIST",BAM_LIST="$BAM_LIST",RENAME="$RENAME",REFERENCE="$REFERENCE",N_THREAD=$N_THREAD, -w $PBS_DIR /gpfs/group1/m/mdr23/projects/eMERGE-PGX/scripts/genotypeVars.pbs
 
